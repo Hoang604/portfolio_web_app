@@ -1,16 +1,23 @@
 import mysql.connector
+import os
+from dotenv import load_dotenv # Import load_dotenv
+
+load_dotenv() # Load environment variables từ file .env
 
 def connect_db():
-    """Hàm kết nối đến cơ sở dữ liệu MySQL"""
+    """Hàm kết nối đến cơ sở dữ liệu MySQL sử dụng environment variables"""
     try:
         mydb = mysql.connector.connect(
-            host="localhost",
-            user="Hoang",
-            password="Hoangdeptry_05",
-            database="portfolio"
+            host=os.environ.get("MYSQL_HOST"),
+            port=os.environ.get("MYSQL_PORT"),
+            user=os.environ.get("MYSQL_USER"),
+            password=os.environ.get("MYSQL_PASSWORD"),
+            database=os.environ.get("MYSQL_DATABASE")
         )
         print("Connected to database")
         return mydb
     except mysql.connector.Error as err:
         print(f"Error connecting to database: {err}")
         return None
+
+connect_db()

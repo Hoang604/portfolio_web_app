@@ -1,6 +1,4 @@
 import mysql.connector
-from portfolio_management.model.User import User
-
 class Stock:
     def __init__(self, stock_code=None, company_name=None, created_at=None, updated_at=None):
         self.stock_code = stock_code

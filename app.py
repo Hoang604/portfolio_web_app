@@ -41,4 +41,4 @@ def portfolio(user_id):
                        chart_labels=chart_labels, # Truyền labels cho biểu đồ
                        chart_data=chart_data)     # Truyền data cho biểu đồ
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()

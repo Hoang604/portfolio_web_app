@@ -1,8 +1,5 @@
 import mysql.connector
 import os
-from dotenv import load_dotenv # Import load_dotenv
-
-load_dotenv() # Load environment variables từ file .env
 
 def connect_db():
     """Hàm kết nối đến cơ sở dữ liệu MySQL sử dụng environment variables"""

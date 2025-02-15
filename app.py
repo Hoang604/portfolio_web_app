@@ -1,6 +1,6 @@
 from flask import Flask, render_template
 from utils.database import connect_db
-from service.Service import PortfolioService
+from Service import PortfolioService
 
 app = Flask(__name__)
 

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Profile - {{ user.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user_profile.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Danh mục đầu tư của {{ user.name }}</h1>
+    <!-- ... (phần hiển thị thông tin user và portfolio holdings) ... -->
+
+    <h2 color="#3498db">Tỉ lệ cổ phiếu trong Portfolio</h2>
+    <div style="display: flex;">
+        <div style="width: 385px; height:385px;">
+            <canvas id="portfolioPieChart"></canvas>
+        </div>
+        <div style="padding-left: 5vw;">
+            <div class="portfolio-header">PORTFOLIO HOLDINGS</div>
+            <div class="portfolio-header table-row" style="margin-top: 0;">
+                <span>Company Name</span>
+                <span>Stock code</span>
+                <span>Current Qty</span>
+                <span>Avg Cost</span>
+                <span>Current Price</span>
+                <span>Profit ($)</span>
+                <span>Profit (%)</span>
+            </div>
+            {% if portfolio_data%}
+                {% for row in portfolio_data %}
+                <div class="portfolio-detail-frame table-row">
+                    <span><span>{{ row.company_name }}</span></span>
+                    <span>{{ row.stock_code }}</span>
+                    <span>{{ row.current_quantity }}</span>
+                    <span>{{ row.average_cost }}</span>
+                    <span>{{ row.current_price }}</span>
+                    <span>{{ row.total_profit_in_cash }}</span>
+                    <span {% if row.total_profit_in_percentage > 0 %}class="profit-positive"{% elif row.total_profit_in_percentage < 0 %}class="profit-negative"{% endif %}>
+                        {{ "{:.2f}%".format(row.total_profit_in_percentage | default(0)) }}
+                    </span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div>Không có thông tin portfolio holdings.</div>
+            {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('portfolioPieChart').getContext('2d');
+
+            // Plugin để vẽ chữ ở giữa doughnut chart - ĐÃ SỬA ĐỔI ĐỂ ĐỔI MÀU CHỮ DỰA TRÊN LỢI NHUẬN
+            const doughnutCenterText = {
+                id: 'doughnutCenterText',
+                afterDatasetsDraw(chart, args, options) {
+                    const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
+
+                    ctx.save();
+
+                    const performanceData = options.performanceData || {}; // Lấy performanceData từ options
+
+                    const profitPercentage = performanceData.total_profit_in_percentage; // Lấy tỉ lệ lợi nhuận
+                    const currentValueColor = profitPercentage < 0 ? 'red' : 'green'; // Xác định màu chữ cho "Hiện tại"
+
+                    const textLines = [ // Mảng các dòng chữ để hiển thị
+                        `Vốn: $${parseInt(performanceData.total_investment_value).toLocaleString('en-US').concat('k VND') || 'N/A'}`, // Dòng 1: Tổng đầu tư - ĐỊNH DẠNG SỐ
+                        `Hiện tại: $${parseInt(performanceData.total_asset_value).toLocaleString('en-US').concat('k VND') || 'N/A'}`, // Dòng 2: Giá trị hiện tại - ĐỊNH DẠNG SỐ
+                        `Lợi nhuận: ${performanceData.total_profit_in_percentage || 'N/A'}%` // Dòng 3: Tỉ lệ lợi nhuận (Không định dạng, tùy chọn)
+                    ];
+
+                    const fontSize = options.fontSize || Math.min(width, height) / 20; // Giảm fontSize để phù hợp với nhiều dòng
+                    const fontStyle = options.fontStyle || 'normal';
+                    const fontFamily = options.fontFamily || 'Segoe UI, sans-serif';
+                    const defaultFontColor = options.fontColor || '#3498db'; // Màu chữ mặc định
+
+                    ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top'; // Căn chỉnh dòng đầu tiên từ trên xuống
+
+                    let startY = top + (height / 2) - (textLines.length * fontSize * 1.2 / 2); // Tính vị trí Y bắt đầu, căn giữa theo chiều dọc
+
+                    textLines.forEach((line, index) => { // Lặp qua từng dòng chữ và vẽ
+                        ctx.fillStyle = defaultFontColor; // Màu mặc định cho mỗi dòng
+                        if (index === 1 || index === 2) { // Nếu là dòng "Hiện tại" (index 1)
+                            ctx.fillStyle = currentValueColor; // Đổi màu chữ dựa trên lợi nhuận
+                        }
+                        const textY = startY + index * fontSize * 1.2;
+                        ctx.fillText(line, left + (width / 2), textY);
+                    });
+
+
+                    ctx.restore();
+                }
+            };
+
+
+            const myPieChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: {{ chart_labels|tojson|safe }},
+                    datasets: [{
+                        label: 'Tỉ lệ cổ phiếu',
+                        data: {{ chart_data|tojson|safe }},
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(255, 159, 64, 0.7)',
+                            'rgba(199, 199, 199, 0.7)',
+                            'rgba(100, 205, 100, 0.7)',
+                            'rgba(220, 180, 0, 0.7)',
+                            'rgba(220, 20, 60, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)',
+                            'rgba(100, 205, 100, 1)',
+                            'rgba(220, 180, 0, 1)',
+                            'rgba(220, 20, 60, 1)'
+                        ],
+                        borderWidth: 1,
+                        segmentRadius: 10, // Tăng bán kính segment một chút để có không gian "nhấc ra"
+                        hoverOffset: 10     // Thêm hoverOffset
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutoutPercentage: 50,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                fontColor: 'rgba(255,255,255)',
+                                fontSize: 14
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Phân bổ Portfolio',
+                            fontSize: 16,
+                            fontColor: 'rgba(255,255,255)'
+                        },
+                        doughnutCenterText: {
+                            performanceData: {{ performance_data|tojson|safe }},
+                            fontColor: '#3498db',
+                            fontSize: 13,
+                            fontStyle: 'bold',
+                            fontFamily: 'Arial, sans-serif'
+                        }
+                    },
+                    // Thêm sự kiện hover
+                    onHover: (event, chartElement) => {
+                        if (chartElement.length) { // Kiểm tra xem có segment nào được hover không
+                            // Đặt cursor thành pointer khi hover vào segment
+                            ctx.canvas.style.cursor = 'pointer';
+                        } else {
+                            // Đặt cursor về mặc định khi không hover vào segment
+                            ctx.canvas.style.cursor = 'default';
+                        }
+                    }
+                },
+                plugins: [doughnutCenterText]
+            });
+        });
+    </script>
+
+</body>
+</html>

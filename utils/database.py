@@ -16,6 +16,10 @@ def connect_db():
             password=os.environ.get("MYSQL_PASSWORD"),
             database=os.environ.get("MYSQL_DATABASE")
         )
+        cursor = mydb.cursor()
+        cursor.execute("SELECT * from users")
+        x = cursor.fetchall()
+        print(x)
         print("Connected to database")
         return mydb
     except mysql.connector.Error as err:

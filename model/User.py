@@ -104,7 +104,7 @@ class User:
                 average_cost = row_data['average_cost']
                 current_quantity = row_data['current_quantity']
 
-                current_price = stock_price.get_current_stock_price(stock_code).iloc[0] if not stock_price.get_current_stock_price(stock_code).empty else None
+                current_price = stock_price.get_current_stock_price(stock_code)
                 total_profit_cash = 0
                 total_profit_percentage = 0
 
@@ -172,8 +172,7 @@ class User:
             for row in db_results:
                 stock_code = row['stock_code']
                 current_quantity = row['current_quantity']
-                current_price_series = stock_price.get_current_stock_price(stock_code)
-                current_price = current_price_series.values[0] if not current_price_series.empty else None
+                current_price = stock_price.get_current_stock_price(stock_code)
                 if current_price is not None:
                     total_current_value += current_quantity * current_price
 

@@ -13,7 +13,8 @@ def update_stock_prices():
                 symbol_upper = symbol.upper()
                 stock = Vnstock(source="TCBS", show_log=False).stock(symbol=symbol_upper, source='VCI')
                 data = stock.trading.price_board(symbols_list=[symbol_upper])
-                stock_prices[symbol_upper] = data['match']['match_price']
+                print(data)
+                stock_prices[symbol_upper] = data['match']['match_price'].iloc[0]
         except Exception as e:
             print(f"Error processing {symbol}: {e}")
         time.sleep(30)

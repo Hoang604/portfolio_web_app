@@ -21,7 +21,7 @@ def update_stock_prices():
 # Hàm để lấy giá cổ phiếu từ biến đã lưu
 def get_current_stock_price(symbol):
     symbol = symbol.upper()
-    return stock_prices.get(symbol, None)
+    return float(stock_prices.get(symbol, None))
 
 # Khởi động thread để cập nhật giá cổ phiếu
 thread = threading.Thread(target=update_stock_prices)

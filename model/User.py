@@ -101,8 +101,8 @@ class User:
             portfolio_view = []
             for row_data in db_results:
                 stock_code = row_data['stock_code']
-                average_cost = row_data['average_cost']
-                current_quantity = row_data['current_quantity']
+                average_cost = float(row_data['average_cost'])
+                current_quantity = float(row_data['current_quantity'])
 
                 current_price = stock_price.get_current_stock_price(stock_code)
                 total_profit_cash = 0
@@ -152,7 +152,7 @@ class User:
                 WHERE user_id = %s"""
             cursor.execute(sql_query, (self.user_id,))
             db_results = cursor.fetchone()
-            cash_balance = db_results['cash_balance'] if db_results else 0
+            cash_balance = float(db_results['cash_balance'] if db_results else 0)
             
             sql_query = """
                 SELECT COALESCE(SUM(amount), 0) AS total_investment_value
@@ -160,7 +160,7 @@ class User:
                 WHERE user_id = %s"""
             cursor.execute(sql_query, (self.user_id,))
             db_results = cursor.fetchone()
-            total_investment_value = db_results['total_investment_value'] if db_results else 0
+            total_investment_value = float(db_results['total_investment_value'] if db_results else 0)
             
             sql_query = """
                 SELECT stock_code, current_quantity
@@ -171,7 +171,7 @@ class User:
             total_current_value = 0
             for row in db_results:
                 stock_code = row['stock_code']
-                current_quantity = row['current_quantity']
+                current_quantity = float(row['current_quantity'])
                 current_price = stock_price.get_current_stock_price(stock_code)
                 if current_price is not None:
                     total_current_value += current_quantity * current_price

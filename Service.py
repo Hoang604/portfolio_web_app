@@ -1,8 +1,7 @@
-from portfolio_web_app.model.User import User
-from portfolio_web_app.model.Stock import Stock
-from portfolio_web_app.model.CapitalInjection import CapitalInjection
-from portfolio_web_app.model.Transaction import Transaction
-from icecream import ic
+from model.User import User
+from model.Stock import Stock
+from model.CapitalInjection import CapitalInjection
+from model.Transaction import Transaction
 
 class PortfolioService:
     def __init__(self, mydb):

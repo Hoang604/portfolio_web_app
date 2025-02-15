@@ -1,6 +1,5 @@
 import mysql.connector
-from portfolio_management.utils import database as db
-from portfolio_management.utils import stock_price
+from utils import stock_price
 
 class User:
     def __init__(self, user_id=None, name=None, contact_info=None, cash_balance=0, created_at=None, updated_at=None, update_reason=None):

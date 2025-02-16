@@ -1,14 +1,22 @@
-# Use the official Python image from the Docker Hub
-FROM python:3.12-slim
+### Builder Stage
+FROM python:3.12-alpine as builder
+WORKDIR /install
 
-# Set the working directory in the container
+# Install build dependencies using apk
+RUN apk add --no-cache gcc musl-dev linux-headers build-base
+
+# Copy requirements and build wheels
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --wheel-dir=/install/wheels -r requirements.txt
+
+### Final Stage
+FROM python:3.12-alpine
 WORKDIR /app
 
-# Copy the requirements file into the container
+# Install runtime dependencies from wheels built in the builder stage
+COPY --from=builder /install/wheels /wheels
 COPY requirements.txt .
-
-# Install the required dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt && rm -rf /wheels
 
 # Copy the rest of the application code into the container
 COPY . .

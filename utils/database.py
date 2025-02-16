@@ -4,6 +4,7 @@ import os
 def connect_db():
     """Hàm kết nối đến cơ sở dữ liệu MySQL sử dụng environment variables"""
     try:
+        print(os.environ.get("MYSQL_HOST"))
         mydb = mysql.connector.connect(
             host=os.environ.get("MYSQL_HOST"),
             port=os.environ.get("MYSQL_PORT"),

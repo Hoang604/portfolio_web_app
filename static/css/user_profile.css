@@ -81,3 +81,18 @@ h1 {
 .profit-negative {
     color: #dc3545; /* Đỏ (Bootstrap red) */
 }
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-10%);
+        opacity: 0.4;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.slide-down {
+    animation: slideDown 0.7s ease-out forwards;
+}

@@ -1,29 +1,14 @@
-import threading
-import time
-from vnstock3 import Vnstock
-# Biến toàn cục để lưu giá cổ phiếu
+from .database import connect_db
+
 stock_prices = {}
 
-def update_stock_prices():
-    global stock_prices
-    symbols = ['RAL', 'HPG', 'MBB']
-    while True:
-        try:
-            for symbol in symbols:
-                symbol_upper = symbol.upper()
-                stock = Vnstock(source="TCBS", show_log=False).stock(symbol=symbol_upper, source='VCI')
-                data = stock.trading.price_board(symbols_list=[symbol_upper])
-                stock_prices[symbol_upper] = float(data['match']['match_price'].iloc[0])
-        except Exception as e:
-            print(f"Error processing {symbol}: {e}")
-        time.sleep(30)
-
-# Hàm để lấy giá cổ phiếu từ biến đã lưu
-def get_current_stock_price(symbol):
-    symbol = symbol.upper()
-    return float(stock_prices.get(symbol, None))
-
-# Khởi động thread để cập nhật giá cổ phiếu
-thread = threading.Thread(target=update_stock_prices)
-thread.daemon = True
-thread.start()
+def get_current_stock_price(stock_code):
+    if stock_code in stock_prices:
+        return stock_prices[stock_code]
+    db = connect_db()
+    cursor = db.cursor()
+    cursor.execute(f"SELECT price FROM stock_prices where stock_code = '{stock_code}' ORDER BY date DESC LIMIT 1")
+    stock_price = cursor.fetchone()
+    stock_price = float(stock_price[0])
+    stock_prices[stock_code] = stock_price
+    return stock_price

@@ -65,7 +65,6 @@ class PortfolioService:
         performance_data = []
         for user in users:
             try:
-                
                 user_perf = user.get_overall_perfomance_view(mydb=self.db)
                 performance_data.append(user_perf)
             except Exception as e:

@@ -59,7 +59,7 @@
                 {% for row in injection_data %}
                 <div class="table-row" style="grid-template-columns: 50% 50%; border-bottom: 1px solid #7e94a3"  >
                     <span>{{ row.injection_date }}</span>
-                    <span>{{ row.amount|int }}</span>
+                    <span>{{ row.amount| thousands}}</span>
                 </div>
                 {% endfor %}
             </div>
@@ -83,7 +83,7 @@
                         <span>{{ row.transaction_date }}</span>
                         <span>{{ row.stock_code }}</span>
                         <span>{{ row.quantity|int }}</span>
-                        <span>{{ row.price_per_share|int }}</span>
+                        <span>{{ row.price_per_share| thousands }}</span>
                         <span>{{ row.transaction_type }}</span>
                     </div>
                 {% endfor %}

@@ -40,7 +40,6 @@ document.addEventListener('DOMContentLoaded', function() {
             ctx.restore();
         }
     };
-
     const myPieChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -88,9 +87,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         fontSize: 14
                     }
                 },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.raw !== null) {
+                                label += context.raw.toLocaleString('en-US') + ' VND';
+                            }
+                            return label;
+                        }
+                    }
+                },
                 title: {
                     display: true,
-                    text: 'Phân bổ Portfolio',
+                    text: 'Phân bổ Danh mục Đầu tư',
                     fontSize: 16,
                     fontColor: 'rgba(255,255,255)'
                 },

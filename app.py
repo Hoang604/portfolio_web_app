@@ -27,7 +27,7 @@ try:
 except Exception as e:
     logging.error(f'Lỗi khởi tạo PortfolioService: {e}') # Log lỗi nếu service không khởi tạo được
     # Tương tự, có thể xử lý lỗi ở đây nếu service không khởi tạo được
-    # raise e
+    # raise 
 
 logging.info('Ứng dụng Flask app.py đã khởi tạo xong.') # Log khi ứng dụng khởi tạo xong
 
@@ -68,13 +68,41 @@ def portfolio(user_id):
         stock_values['Cash'] = cash_balance
         chart_labels = list(stock_values.keys())
         chart_data = list(stock_values.values())
+        
+        profit_data = service.get_profit_data(user_id)
+        profit_chart_labels = []
+        profit_chart_total_asset = []
+        profit_chart_total_asset_bank = []
+        profit_chart_total_asset_index = []
+        profit_chart_total_investment = []
+        for data in profit_data:
+            profit_chart_labels.append(data['date'])
+            profit_chart_total_asset.append(data['total_asset'])
+            profit_chart_total_asset_bank.append(data['total_asset_bank'])
+            profit_chart_total_asset_index.append(data['total_asset_index'])
+            profit_chart_total_investment.append(data['total_investment'])
+        
+        profit_chart_profit_percent = profit_data[-1]['profit_percent']
+        print(profit_chart_profit_percent)
+        transaction_data = service.get_transaction_data(user_id)
+        injection_data = service.get_injection_data(user_id)
+        print(injection_data)
+        print(transaction_data)
         logging.debug(f'Dữ liệu cho user_id {user_id} đã được lấy thành công.') # Log debug khi lấy dữ liệu thành công
         return render_template('user_profile.html',
                            performance_data=performance_data,
+                           transaction_data=transaction_data,
+                           injection_data=injection_data,
                            user=user,
                            portfolio_data=portfolio_data,
                            chart_labels=chart_labels,
-                           chart_data=chart_data)
+                           chart_data=chart_data,
+                           profit_chart_labels=profit_chart_labels,
+                           profit_chart_total_asset=profit_chart_total_asset,
+                           profit_chart_total_asset_bank=profit_chart_total_asset_bank,
+                           profit_chart_total_asset_index=profit_chart_total_asset_index,
+                           profit_chart_total_investment=profit_chart_total_investment,
+                           profit_chart_profit_percent=profit_chart_profit_percent)
     except Exception as e:
         logging.error(f'Lỗi trong route "/user/<user_id>": {e}') # Log lỗi nếu có lỗi trong route
         return "Đã có lỗi xảy ra khi tải trang hồ sơ người dùng.", 500 # Trả về thông báo lỗi

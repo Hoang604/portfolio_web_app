@@ -229,7 +229,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 title: {
                     display: true,
-                    text: 'Lịch sử lợi nhuận (lợi nhuận ước tính ' + (profit_percentage ? profit_percentage.toFixed(2) : '') + '%/năm)',                }
+                    text: 'Lịch sử lợi nhuận (lợi nhuận ước tính ' + (profit_percentage ? profit_percentage.toFixed(2) : '') + '%/năm)',
+                    font: {
+                        size: 16
+                    },
+
+                }
             },
             layout: {
                 padding: 0
@@ -237,14 +242,30 @@ document.addEventListener('DOMContentLoaded', function() {
             scales: {
                 x: {
                     display: true,
+                    title: {
+                        display: true,
+                        text: 'Tháng' // Tiêu đề của trục x
+                    },
                     grid: {
-                        display: false
+                        display: true,
+                        color: 'rgba(255,255,255,0.05)' // Màu của lưới trục x
+                    },
+                    ticks: {
+                        maxTicksLimit: 6
                     }
                 },
                 y: {
                     display: true,
+                    title: {
+                        display: true,
+                        text: 'Giá trị (k VND)' // Tiêu đề của trục y
+                    },
                     grid: {
-                        display: false
+                        display: true,
+                        color: 'rgba(255,255,255,0.05)' // Màu của lưới trục y
+                    },
+                    ticks: {
+                        maxTicksLimit: 6
                     }
                 }
             }

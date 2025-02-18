@@ -4,7 +4,7 @@ from Service import PortfolioService
 import logging
 
 # Cấu hình logging: ghi log vào file 'app.log' với level DEBUG
-logging.basicConfig(filename='/tmp/app.log', level=logging.DEBUG,
+logging.basicConfig(filename='app.log', level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(lineno)d - %(message)s')
 
 logging.info('Ứng dụng Flask app.py bắt đầu khởi tạo...') # Log khi ứng dụng bắt đầu chạy
@@ -83,11 +83,9 @@ def portfolio(user_id):
             profit_chart_total_investment.append(data['total_investment'])
         
         profit_chart_profit_percent = profit_data[-1]['profit_percent']
-        print(profit_chart_profit_percent)
         transaction_data = service.get_transaction_data(user_id)
         injection_data = service.get_injection_data(user_id)
-        print(injection_data)
-        print(transaction_data)
+
         logging.debug(f'Dữ liệu cho user_id {user_id} đã được lấy thành công.') # Log debug khi lấy dữ liệu thành công
         return render_template('user_profile.html',
                            performance_data=performance_data,

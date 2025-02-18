@@ -1,5 +1,4 @@
 from model.User import User
-from icecream import ic
 
 class PortfolioService:
     def __init__(self, mydb):

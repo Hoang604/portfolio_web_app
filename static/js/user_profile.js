@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 title: {
                     display: true,
-                    text: 'Lịch sử lợi nhuận (lợi nhuận ước tính ' + (profit_percentage ? profit_percentage.toFixed(2) : '') + '%/năm)',
+                    text: 'Lịch sử lợi nhuận (lợi nhuận ước tính: ' + (profit_percentage ? profit_percentage.toFixed(2) : '') + '%/năm)',
                     font: {
                         size: 16
                     },

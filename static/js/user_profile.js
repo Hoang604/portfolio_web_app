@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 label += ': ';
                             }
                             if (context.parsed.y !== null) {
-                                label += (context.parsed.y).toLocaleString('en-US') + ' VND';
+                                label += (context.parsed.y).toLocaleString('en-US') + 'k VND';
                             }
                             return label;
                         }

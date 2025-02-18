@@ -61,6 +61,11 @@ def portfolio(user_id):
             stock_code = holding['stock_code']
             current_value = holding['current_price'] * holding['current_quantity']
             stock_values [stock_code] = current_value
+        cursor = db.cursor()
+        cursor.execute(f"SELECT cash_balance FROM users WHERE user_id = {user_id}")
+        cash_balance = cursor.fetchone()
+        cash_balance = float(cash_balance[0])
+        stock_values['Cash'] = cash_balance
         chart_labels = list(stock_values.keys())
         chart_data = list(stock_values.values())
         logging.debug(f'Dữ liệu cho user_id {user_id} đã được lấy thành công.') # Log debug khi lấy dữ liệu thành công
@@ -78,5 +83,5 @@ def portfolio(user_id):
 
 if __name__ == '__main__':
     logging.info('Chuẩn bị gọi app.run() ...') # Log ngay trước app.run()
-    app.run(debug=True, host='0.0.0.0', port=8080) # Để app có thể truy cập từ bên ngoài localhost
+    app.run(debug=True, host='0.0.0.0', port=5000) # Để app có thể truy cập từ bên ngoài localhost
     logging.info('app.run() đã hoàn thành (nếu có)...') # Log ngay sau app.run() - có thể không bao giờ được gọi khi app chạy liên tục

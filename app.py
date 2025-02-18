@@ -68,5 +68,13 @@ def portfolio(user_id):
                            profit_chart_total_investment=profit_chart_total_investment,
                            profit_chart_profit_percent=profit_chart_profit_percent)
 
+# Định nghĩa custom filter cho Jinja2
+@app.template_filter('thousands')
+def thousands_filter(value):
+    try:
+        # Ép kiểu về float và định dạng với dấu phẩy phân cách hàng nghìn, không có chữ số thập phân
+        return "{:,.0f}".format(float(value))
+    except (ValueError, TypeError):
+        return value
 if __name__ == '__main__':
     app.run()

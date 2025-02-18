@@ -9,24 +9,24 @@
     <h1>Overall Performance Dashboard</h1>
 
     <div class="perf-view-frame">
-        <div class="table-header table-row">
+        <div class="table-header table-row" style="color: rgb(165, 184, 201);">
             <span>User (ID)</span>
-            <span>Cash Balance</span>
-            <span>Total Injection</span>
-            <span>Current Value</span>
-            <span>Total Asset</span>
-            <span>Profit ($)</span>
-            <span>Profit (%)</span>
+            <span>Số dư tiền mặt (VND)</span>
+            <span>Tổng vốn đầu tư (VND)</span>
+            <span>Giá trị thị trường (VND)</span>
+            <span>Tổng tài sản (VND)</span>
+            <span>Lợi nhuận (VND)</span>
+            <span>Lợi nhuận (%)</span>
         </div>
 
         {% for user_perf in users_performance %}
         <div class="table-row" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
             <span>{{ user_perf.name }} ({{ user_perf.user_id }})</span>
-            <span>{{ user_perf.cash_balance }}</span>
-            <span>{{ user_perf.total_investment_value }}</span>
-            <span>{{ user_perf.total_current_value }}</span>
-            <span>{{ user_perf.total_asset_value }}</span>
-            <span>{{ user_perf.total_profit_in_cash }}</span>
+            <span>{{ user_perf.cash_balance | thousands}}</span>
+            <span>{{ user_perf.total_investment_value | thousands}}</span>
+            <span>{{ user_perf.total_current_value | thousands}}</span>
+            <span>{{ user_perf.total_asset_value | thousands}}</span>
+            <span>{{ user_perf.total_profit_in_cash |thousands}}</span>
             <span {% if user_perf.total_profit_in_percentage > 0 %}class="profit-positive"{% elif user_perf.total_profit_in_percentage < 0 %}class="profit-negative"{% endif %}>
                 {% if user_perf.total_investment_value and user_perf.total_investment_value != 0 %}
                     {{ "{:.2f}%".format(user_perf.total_profit_in_percentage) }}

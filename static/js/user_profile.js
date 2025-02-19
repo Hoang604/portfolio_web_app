@@ -1,6 +1,12 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('portfolioPieChart').getContext('2d');
-
+document.addEventListener('DOMContentLoaded', function () {
+    let ctx;
+    console.log(window.innerWidth);
+    if (window.innerWidth < 768) {
+        ctx = document.getElementById('portfolioMobilePieChart').getContext('2d');
+    }
+    else {
+        ctx = document.getElementById('portfolioPieChart').getContext('2d');
+    }
     const doughnutCenterText = {
         id: 'doughnutCenterText',
         afterDatasetsDraw(chart, args, options) {
@@ -79,6 +85,9 @@ document.addEventListener('DOMContentLoaded', function() {
             responsive: true,
             maintainAspectRatio: false,
             cutoutPercentage: 50,
+            layout: {
+                padding: { bottom: 10 }
+            },
             plugins: {
                 legend: {
                     position: 'top',
@@ -127,8 +136,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('profitChart').getContext('2d');
+document.addEventListener('DOMContentLoaded', function () {
+    let ctx;
+    if (window.innerWidth < 768) {
+        ctx = document.getElementById('profitMobileChart').getContext('2d');
+    }
+    else {
+        ctx = document.getElementById('profitChart').getContext('2d');
+    }
     const myChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -305,4 +320,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // Có thể đảm bảo bằng cách xóa class "selected" sau khi khởi tạo
     document.getElementById('toggleBank').classList.remove('selected');
     document.getElementById('toggleIndex').classList.remove('selected');
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Chỉ áp dụng cho mobile (window.innerWidth < 768)
+    if (window.innerWidth < 768) {
+        // Chọn tất cả các phần tử có class .slide-left
+        const slideElements = document.querySelectorAll('.slide-left');
+        
+        // Tạo Intersection Observer
+        const observer = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('show');
+                    // Ngừng theo dõi sau khi animation được kích hoạt
+                    obs.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 }); // Khi 10% phần tử xuất hiện trong viewport
+        
+        // Áp dụng observer cho các phần tử
+        slideElements.forEach(el => {
+            observer.observe(el);
+        });
+    }
 });

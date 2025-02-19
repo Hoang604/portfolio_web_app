@@ -1,41 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Overall Performance Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overall Performance Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+  <!-- Add FontAwesome for detail icon -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <h1>Overall Performance Dashboard</h1>
+  <h1 class="desktop-only">Overall Performance Dashboard</h1>
 
-    <div class="perf-view-frame">
-        <div class="table-header table-row" style="color: rgb(165, 184, 201);">
-            <span>User (ID)</span>
-            <span>Số dư tiền mặt (VND)</span>
-            <span>Tổng vốn đầu tư (VND)</span>
-            <span>Giá trị thị trường (VND)</span>
-            <span>Tổng tài sản (VND)</span>
-            <span>Lợi nhuận (VND)</span>
-            <span>Lợi nhuận (%)</span>
-        </div>
+  <!-- Desktop Container -->
+  <div class="perf-view-frame desktop-only">
+      <!-- Desktop Header -->
+      <div class="table-header table-row" style="color: rgb(165, 184, 201);">
+          <span>User (ID)</span>
+          <span>Số dư tiền mặt (VND)</span>
+          <span>Tổng vốn đầu tư (VND)</span>
+          <span>Giá trị thị trường (VND)</span>
+          <span>Tổng tài sản (VND)</span>
+          <span>Lợi nhuận (VND)</span>
+          <span>Lợi nhuận (%)</span>
+      </div>
 
-        {% for user_perf in users_performance %}
-        <div class="table-row" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
-            <span>{{ user_perf.name }} ({{ user_perf.user_id }})</span>
-            <span>{{ user_perf.cash_balance | thousands}}</span>
-            <span>{{ user_perf.total_investment_value | thousands}}</span>
-            <span>{{ user_perf.total_current_value | thousands}}</span>
-            <span>{{ user_perf.total_asset_value | thousands}}</span>
-            <span>{{ user_perf.total_profit_in_cash |thousands}}</span>
-            <span {% if user_perf.total_profit_in_percentage > 0 %}class="profit-positive"{% elif user_perf.total_profit_in_percentage < 0 %}class="profit-negative"{% endif %}>
-                {% if user_perf.total_investment_value and user_perf.total_investment_value != 0 %}
-                    {{ "{:.2f}%".format(user_perf.total_profit_in_percentage) }}
-                {% else %}
-                    N/A
-                {% endif %}
-            </span>
-        </div>
-        {% endfor %}
-    </div>
+      {% for user_perf in users_performance %}
+      <div class="table-row" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
+          <span>{{ user_perf.name }} ({{ user_perf.user_id }})</span>
+          <span>{{ user_perf.cash_balance | thousands }}</span>
+          <span>{{ user_perf.total_investment_value | thousands }}</span>
+          <span>{{ user_perf.total_current_value | thousands }}</span>
+          <span>{{ user_perf.total_asset_value | thousands }}</span>
+          <span>{{ user_perf.total_profit_in_cash | thousands }}</span>
+          <span {% if user_perf.total_profit_in_percentage > 0 %}class="profit-positive"{% elif user_perf.total_profit_in_percentage < 0 %}class="profit-negative"{% endif %}>
+              {% if user_perf.total_investment_value and user_perf.total_investment_value != 0 %}
+                  {{ "{:.2f}%".format(user_perf.total_profit_in_percentage) }}
+              {% else %}
+                  N/A
+              {% endif %}
+          </span>
+      </div>
+      {% endfor %}
+  </div>
+
+  <!-- Mobile Container -->
+   <h1 class="mobile-only">Overall Performance Dashboard</h1>
+  <div class="perf-view-frame mobile-only"> 
+      <!-- Mobile Header -->
+      <div class="mobile-table-header mobile-table-row" style="color: rgb(165, 184, 201);">
+          <span>User</span>
+          <span>Tổng tài sản</span>
+          <span>Lợi nhuận (%)</span>
+          <span>Chi tiết</span>
+      </div>
+
+      {% for user_perf in users_performance %}
+      <div class="mobile-table-row">
+          <span>{{ user_perf.name }}</span>
+          <span>{{ user_perf.total_asset_value | thousands }}</span>
+          <span {% if user_perf.total_profit_in_percentage > 0 %}class="profit-positive"{% elif user_perf.total_profit_in_percentage < 0 %}class="profit-negative"{% endif %}>
+              {% if user_perf.total_investment_value and user_perf.total_investment_value != 0 %}
+                  {{ "{:.2f}%".format(user_perf.total_profit_in_percentage) }}
+              {% else %}
+                  N/A
+              {% endif %}
+          </span>
+          <span class="detail-link" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
+              <i class="fas fa-chevron-right"></i>
+          </span>
+      </div>
+      {% endfor %}
+  </div>
 </body>
 </html>

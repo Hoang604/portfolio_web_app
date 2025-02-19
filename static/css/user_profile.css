@@ -1,61 +1,18 @@
-body {
-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-background-color: rgb(23, 29, 48); /* <--- CHANGE background-color to cyan */
-color: #3498db;
-margin: 0;
-padding: 20px;
-}
-
-h1 {
-    color: #3498db;
-    margin-bottom: 20px;
-}
-
 .table-header {
     display: grid;
     position: sticky;
     top: 0;
     background-color: #00274e;
     z-index: 2;
-    grid-template-columns: 20% 13.333% 13.333% 13.333% 13.333% 13.333% 13.333%;
-    padding: 10px 0;
     border-bottom: 2px solid #eee;
     font-weight: 600;
     color: #555;
 }
 
-.table-row {
-    display: grid;
-    grid-template-columns: 20% 13.333% 13.333% 13.333% 13.333% 13.333% 13.333%;
-    padding: 10px 0;
-    border-bottom: 1px solid #eee;
-    align-items: center;
-    cursor: pointer;
-    transition: background-color 0.1s ease;
-}
-
-.table-row:hover {
-    background-color: #062442;
-}
-
-.table-row:last-child {
-    border-bottom: none;
-}
-
-.table-row:nth-child(even) {
-    background-color: rgb(27, 35, 59);
-}
-
-.table-row:nth-child(even):hover {
-    background-color: #082d52;
-}
-
-.table-row:nth-child(odd) {
-    background-color: rgb(31, 38, 58);
-}
-
-.table-row:nth-child(odd):hover {
-    background-color: #0a325f;
+.portfolio {
+    padding: 0  3% 0 5%;
+    width: 100%; 
+    overflow-y: auto;
 }
 
 .portfolio-header {
@@ -71,15 +28,17 @@ h1 {
         #00132c 100%);  /* Gần đen */
 }
 
+
 .portfolio-header.table-row {
     border-bottom: 2px solid #ddd;
     font-weight: 600;
+    margin-top: 0;
 }
 
-.portfolio-detail-frame.table-row {
+.portfolio-row.table-row {
     border-bottom: 1px dashed #eee;
 }
-.portfolio-detail-frame.table-row:last-child {
+.portfolio-row.table-row:last-child {
     border-bottom: none;
 }
 
@@ -90,14 +49,6 @@ h1 {
     padding-right: 5px;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-/* Style cho Profit (%) - Xanh lá cây và đỏ */
-.profit-positive {
-    color: #28a745; /* Xanh lá cây (Bootstrap green) */
-}
-
-.profit-negative {
-    color: #dc3545; /* Đỏ (Bootstrap red) */
 }
 
 @keyframes slideDown {
@@ -132,7 +83,7 @@ h1 {
 
 .capital-injection-history {
     color: #28a745;
-    width: 230px;
+    width: 100%;
     height: 500px;
     margin: 0;
     padding: auto;
@@ -142,7 +93,7 @@ h1 {
 
 .transaction-history {
     color: #28a745;
-    width: auto;
+    width: 100%;
     height: 500px;
     margin: 0;
     padding: auto;
@@ -214,30 +165,127 @@ button:hover {
     transform: translateY(0);
 }
 
-  .toggle-btn {
-    padding: 8px 16px;
-    font-size: 14px;
-    background-color: #3498db;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    position: relative;
-  }
-  .toggle-btn:hover {
+.toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    padding-left: 0;
+}
+
+.toggle-btn:hover {
     background-color: #2d89c9;
     transform: translateY(-2px);
-  }
-  .toggle-btn:active {
+}
+.toggle-btn:active {
     background-color: #1c6ea4;
     transform: translateY(0);
-  }
-  /* Khi button được chọn thì hiển thị dấu tích xanh */
-  .toggle-btn.selected::after {
-    content: " ✓";
+}
+
+.toggle-btn::before {
+    content: "";
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 3px;
+    margin-right: 8px; /* khoảng cách giữa ô và chữ */
+}
+
+.toggle-btn.selected::before {
+    content: "✓";
     color: limegreen;
     font-weight: bold;
-    margin-left: 5px;
-  }
+    font-size: 14px;
+    text-align: center;
+    line-height: 16px;
+}
+
+.toggle-btn-no-icon {
+    display: inline-flex;
+    align-items: center;
+    padding-left: 0;
+}
+
+.toggle-btn-no-icon:hover {
+    background-color: #2d89c9;
+    transform: translateY(-2px);
+}
+.toggle-btn-no-icon:active {
+    background-color: #1c6ea4;
+    transform: translateY(0);
+}
+
+@media screen and (max-width: 768px) {
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    .mobile-portfolio {
+        padding-left: 1vw; 
+        width: 100vw; 
+    }
+    .mobile-portfolio-header {
+        padding-top: 10px;
+        font-weight: bold;
+        padding-bottom: 10px;
+        color: #3498db;
+        background: linear-gradient(90deg,
+            #0a325f,   /* Màu xanh dương đậm */
+            #092b54 25%,
+            #07254a 50%,
+            #051e40 75%,
+            #00132c 100%);  /* Gần đen */
+    }
+
+    .mobile-portfolio-header.table-row {
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+
+    .mobile-portfolio-row.table-row {
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+    .mobile-portfolio-row.table-row:last-child {
+        border-bottom: none;
+    }
+
+    .p-mobile-table-row {
+        display: grid;
+        grid-template-columns: 33% 33% 34%;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+        align-items: center;
+        cursor: pointer;
+        transition: background-color 0.1s ease;
+    }
+    .upper-mobile-table-row {
+        display: grid;
+        grid-template-columns: 33% 33% 34%;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        align-items: center;
+        cursor: pointer;
+        transition: background-color 0.1s ease;
+    }
+
+    /* Trạng thái ban đầu */
+    .slide-left {
+        opacity: 0;
+        transform: translateX(-5%);
+    }
+    
+    /* Khi element được kích hoạt (vuốt đến) */
+    .slide-left.show {
+        animation: slideLeftToRight 0.3s ease-out forwards;
+    }
+    
+    @keyframes slideLeftToRight {
+        from {
+            transform: translateX(-5%);
+            opacity: 0.6;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+}

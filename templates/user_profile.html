@@ -2,41 +2,138 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile - {{ user.name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user_profile.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 </head>
 <body>
-    <h1>Danh mục đầu tư của {{ user.name }}</h1>
-    <!-- ... (phần hiển thị thông tin user và portfolio holdings) ... -->
+    <div class = "desktop-only">
+        <h1>Danh mục đầu tư của {{ user.name }}</h1>
+        <!-- ... (phần hiển thị thông tin user và portfolio holdings) ... -->
 
-    <h2 style="color:#3498db">Tỉ lệ tài sản trong Danh mục đầu tư</h2>
-    <div style="display: flex;">
-        <div style="width: 385px; height:385px;">
-            <canvas id="portfolioPieChart"></canvas>
+        <h2 style="color:#3498db">Tỉ lệ tài sản trong Danh mục đầu tư</h2>
+        <div style="display: flex;">
+            <div style="width: 365px; height:385px;">
+                <canvas id="portfolioPieChart"></canvas>
+            </div>
+            <div class="slide-down portfolio">
+                <div class="portfolio-header">DANH MỤC CỔ PHIẾU</div>
+                <div class="portfolio-header table-row">
+                    <span>Tên Công Ty</span>
+                    <span>Mã cổ phiếu</span>
+                    <span>Khối lượng tổng</span>
+                    <span>Giá vốn (VND)</span>
+                    <span>Thị giá (VND)</span>
+                    <span>Lợi nhuận (VND)</span>
+                    <span>Lợi nhuận (%)</span>
+                </div>
+                {% if portfolio_data %}
+                    {% for row in portfolio_data %}
+                    <div class="portfolio-row table-row">
+                        <span><span>{{ row.company_name }}</span></span>
+                        <span>{{ row.stock_code }}</span>
+                        <span>{{ row.current_quantity }}</span>
+                        <span>{{ row.average_cost | thousands}}</span>
+                        <span>{{ row.current_price | thousands}}</span>
+                        <span>{{ row.total_profit_in_cash | thousands}}</span>
+                        <span {% if row.total_profit_in_percentage > 0 %}class="profit-positive"{% elif row.total_profit_in_percentage < 0 %}class="profit-negative"{% endif %}>
+                            {{ "{:.2f}%".format(row.total_profit_in_percentage | default(0)) }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div>Không có thông tin portfolio holdings.</div>
+                {% endif %}
+            </div>
         </div>
-        <div class="slide-down" style="padding-left: 5vw; width: 1200px; overflow-y: auto;">
-            <div class="portfolio-header">DANH MỤC CỔ PHIẾU</div>
-            <div class="portfolio-header table-row" style="margin-top: 0;">
-                <span>Tên Công Ty</span>
+
+        <div style="display: flex;">
+            <div style="width: 15%;">
+                <h3 style="color: #3498db; margin-right: 10px;">Lịch sử góp vốn</h3>
+                <div class="capital-injection-history slide-up" style="margin-right: 10px;">
+                    <div class="table-header table-row" style="grid-template-columns: 50% 50%; color: #3498db; padding: 0; margin: 0; height: 60px;">
+                        <span>Ngày</span>
+                        <span>Số tiền (VND)</span>
+                    </div>
+                    {% for row in injection_data %}
+                    <div class="table-row" style="grid-template-columns: 50% 50%; border-bottom: 1px solid #7e94a3"  >
+                        <span>{{ row.injection_date }}</span>
+                        <span>{{ row.amount| thousands}}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div style="width: 30%;">
+                <h3 style="color: #3498db; margin-left: 10px; margin-right: 20px;">Lịch sử giao dịch</h3>
+                <div class="transaction-history slide-up" style="margin-left: 10px; margin-right: 20px; width: 500px;">
+                    <div class="table-header table-row" style="grid-template-columns: 30% 15% 15% 20% 20%; color: #3498db; padding: 0; margin: 0; height: 60px;">
+                        <span>Ngày</span>
+                        <span>Mã</span>
+                        <span>Khối lượng</span>
+                        <span>Giá vốn (VND)</span>
+                        <span>Loại</span>
+                    </div>
+                    {% for row in transaction_data %}
+                        {% if row.transaction_type == 'SELL' %}
+                        <div class="table-row" style="grid-template-columns: 30% 15% 15% 20% 20%; color: #dc3545; border-bottom: 1px solid #7e94a3">
+                        {% else %}
+                        <div class="table-row" style="grid-template-columns: 30% 15% 15% 20% 20%; border-bottom: 1px solid #7e94a3">
+                        {% endif %}
+                            <span>{{ row.transaction_date }}</span>
+                            <span>{{ row.stock_code }}</span>
+                            <span>{{ row.quantity|int }}</span>
+                            <span>{{ row.price_per_share| thousands }}</span>
+                            <span>{{ row.transaction_type }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div style="width: 55%;">
+                <div class="chart-container" style="height: 500px;">
+                    <canvas id="profitChart" style="width: 100%; height: 100%;"></canvas>
+                </div>
+                <div id="chartControls" style="display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
+                    <button id="toggleBank" class="toggle-btn">Lợi nhuận gửi ngân hàng</button>
+                    <button id="toggleIndex" class="toggle-btn">Trung bình thị trường</button>
+                    <button id="resetZoom" class="toggle-btn-no-icon">Reset Zoom</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mobile-only">
+        <h1 style="margin-left: 1vw;">Danh mục đầu tư của {{ user.name }}</h1>
+        <!-- ... (phần hiển thị thông tin user và portfolio holdings) ... -->
+
+        <h2 style="margin-left: 1vw;">Tỉ lệ tài sản trong Danh mục đầu tư</h2>
+        <div style="width: 85vw; height:90vw; margin: 0 auto;">
+            <canvas id="portfolioMobilePieChart"></canvas>
+        </div>
+        <div class="slide-left mobile-portfolio">
+            <h2>DANH MỤC CỔ PHIẾU</h2>
+            <div class="portfolio-header upper-mobile-table-row">
                 <span>Mã cổ phiếu</span>
                 <span>Khối lượng tổng</span>
-                <span>Giá vốn (VND)</span>
-                <span>Thị giá (VND)</span>
                 <span>Lợi nhuận (VND)</span>
+            </div>
+            <div class="portfolio-header p-mobile-table-row">
+                <span>Thị giá (VND)</span>
+                <span>Giá vốn (VND)</span>
                 <span>Lợi nhuận (%)</span>
             </div>
             {% if portfolio_data %}
                 {% for row in portfolio_data %}
-                <div class="portfolio-detail-frame table-row">
-                    <span><span>{{ row.company_name }}</span></span>
+                <div class="portfolio-row upper-mobile-table-row"  style="border-bottom: 1px dashed rgba(255,255,255,0.1);">
                     <span>{{ row.stock_code }}</span>
                     <span>{{ row.current_quantity }}</span>
-                    <span>{{ row.average_cost | thousands}}</span>
-                    <span>{{ row.current_price | thousands}}</span>
                     <span>{{ row.total_profit_in_cash | thousands}}</span>
+                </div>
+                <div class="portfolio-row p-mobile-table-row">
+                    <span>{{ row.current_price | thousands}}</span>
+                    <span>{{ row.average_cost | thousands}}</span>
                     <span {% if row.total_profit_in_percentage > 0 %}class="profit-positive"{% elif row.total_profit_in_percentage < 0 %}class="profit-negative"{% endif %}>
                         {{ "{:.2f}%".format(row.total_profit_in_percentage | default(0)) }}
                     </span>
@@ -46,27 +143,20 @@
                 <div>Không có thông tin portfolio holdings.</div>
             {% endif %}
         </div>
-    </div>
-
-    <div style="display: flex;">
         <div>
-            <h3 style="color: #3498db; margin-right: 10px;">Lịch sử góp vốn</h3>
-            <div class="capital-injection-history slide-up" style="margin-right: 10px;">
-                <div class="table-header table-row" style="grid-template-columns: 50% 50%; color: #3498db; padding: 0; margin: 0; height: 60px;">
-                    <span>Ngày</span>
-                    <span>Số tiền (VND)</span>
-                </div>
-                {% for row in injection_data %}
-                <div class="table-row" style="grid-template-columns: 50% 50%; border-bottom: 1px solid #7e94a3"  >
-                    <span>{{ row.injection_date }}</span>
-                    <span>{{ row.amount| thousands}}</span>
-                </div>
-                {% endfor %}
+            <div class="chart-container" style="width: 95vw; height: 40vh;">
+                <canvas id="profitMobileChart" style="width: 90vw; height: 40vh;"></canvas>
             </div>
+            <div id="chartControls" style="display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
+                    <button id="toggleBank" class="toggle-btn">Lợi nhuận gửi ngân hàng</button>
+                    <button id="toggleIndex" class="toggle-btn">Trung bình thị trường</button>
+                    <button id="resetZoom" class="toggle-btn-no-icon">Reset Zoom</button>
+                </div>
         </div>
+
         <div>
-            <h3 style="color: #3498db; margin-left: 10px; margin-right: 20px;">Lịch sử giao dịch</h3>
-            <div class="transaction-history slide-up" style="margin-left: 10px; margin-right: 20px; width: 500px;">
+            <h2 style="padding-left: 1vw;">Lịch sử giao dịch</h2>
+            <div class="slide-left" style="margin: 0 1vw; color: #28a745">
                 <div class="table-header table-row" style="grid-template-columns: 30% 15% 15% 20% 20%; color: #3498db; padding: 0; margin: 0; height: 60px;">
                     <span>Ngày</span>
                     <span>Mã</span>
@@ -89,14 +179,20 @@
                 {% endfor %}
             </div>
         </div>
+
         <div>
-            <div class="chart-container" style="width: 1050px; height: 468px;">
-                <canvas id="profitChart" style="width: 1050px; height: 468px;"></canvas>
-                <div id="chartControls" style="display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
-                    <button id="toggleBank" class="toggle-btn">Lợi nhuận gửi ngân hàng</button>
-                    <button id="toggleIndex" class="toggle-btn">Trung bình thị trường</button>
-                    <button id="resetZoom" class="toggle-btn">Reset Zoom</button>
+            <h2 style="padding-left: 1vw;">Lịch sử góp vốn</h2>
+            <div class="slide-left" style="margin: 0 1vw; color: #28a745">
+                <div class="table-header table-row" style="grid-template-columns: 50% 50%; color: #3498db; padding: 0; margin: 0; height: 60px;">
+                    <span>Ngày</span>
+                    <span>Số tiền (VND)</span>
                 </div>
+                {% for row in injection_data %}
+                <div class="table-row" style="grid-template-columns: 50% 50%; border-bottom: 1px solid #7e94a3"  >
+                    <span>{{ row.injection_date }}</span>
+                    <span>{{ row.amount| thousands}}</span>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>

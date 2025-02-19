@@ -292,23 +292,8 @@ document.addEventListener('DOMContentLoaded', function () {
         myChart.resetZoom();
     });
 
-    document.getElementById('resetZoomMobile').addEventListener('touchstart', function() {
-        myChart.resetZoom();
-    });
-
     // Sự kiện cho nút toggle Lợi nhuận gửi ngân hàng
     document.getElementById('toggleBank').addEventListener('click', function() {
-        const bankDataset = myChart.data.datasets.find(ds => ds.label === 'Lợi nhuận gửi ngân hàng');
-        bankDataset.hidden = !bankDataset.hidden;
-        if (!bankDataset.hidden) {
-            this.classList.add('selected');
-        } else {
-            this.classList.remove('selected');
-        }
-        myChart.update();
-    });
-
-    document.getElementById('toggleBank').addEventListener('touchstart', function() {
         const bankDataset = myChart.data.datasets.find(ds => ds.label === 'Lợi nhuận gửi ngân hàng');
         bankDataset.hidden = !bankDataset.hidden;
         if (!bankDataset.hidden) {
@@ -330,19 +315,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         myChart.update();
     });
-
-    // Sự kiện cho nút toggle Trung bình thị trường chứng khoán
-    document.getElementById('toggleIndex').addEventListener('touchstart', function() {
-        const indexDataset = myChart.data.datasets.find(ds => ds.label === 'Trung bình thị trường chứng khoán');
-        indexDataset.hidden = !indexDataset.hidden;
-        if (!indexDataset.hidden) {
-            this.classList.add('selected');
-        } else {
-            this.classList.remove('selected');
-        }
-        myChart.update();
-    });
-
 
     // Mặc định, nếu bạn muốn nút toggle không hiển thị dấu tích (tức là không chọn)
     // Có thể đảm bảo bằng cách xóa class "selected" sau khi khởi tạo

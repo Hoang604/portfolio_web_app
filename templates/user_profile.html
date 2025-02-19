@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user_profile.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/1.2.0/chartjs-plugin-zoom.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 </head>
@@ -69,7 +71,7 @@
             </div>
             <div style="width: 30%;">
                 <h3 style="color: #3498db; margin-left: 10px; margin-right: 20px;">Lịch sử giao dịch</h3>
-                <div class="transaction-history slide-up" style="margin-left: 10px; margin-right: 20px; width: 500px;">
+                <div class="transaction-history slide-up" style="margin-left: 10px; margin-right: 20px; width: 100%;">
                     <div class="table-header table-row" style="grid-template-columns: 30% 15% 15% 20% 20%; color: #3498db; padding: 0; margin: 0; height: 60px;">
                         <span>Ngày</span>
                         <span>Mã</span>
@@ -148,9 +150,9 @@
                 <canvas id="profitMobileChart" style="width: 90vw; height: 40vh;"></canvas>
             </div>
             <div id="chartControls" style="display: flex; justify-content: center; gap: 20px; margin-top: 10px; touch-action: manipulation;">
-                    <button id="toggleBank" class="toggle-btn">Lợi nhuận gửi ngân hàng</button>
-                    <button id="toggleIndex" class="toggle-btn">Trung bình thị trường</button>
-                    <button id="resetZoom" class="toggle-btn-no-icon">Reset Zoom</button>
+                    <button id="toggleBankMobile" class="toggle-btn">Lợi nhuận gửi ngân hàng</button>
+                    <button id="toggleIndexMobile" class="toggle-btn">Trung bình thị trường</button>
+                    <button id="resetZoomMobile" class="toggle-btn-no-icon">Reset Zoom</button>
                 </div>
         </div>
 

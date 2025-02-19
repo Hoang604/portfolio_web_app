@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
     let ctx;
-    console.log(window.innerWidth);
     if (window.innerWidth < 768) {
         ctx = document.getElementById('portfolioMobilePieChart').getContext('2d');
     }
@@ -138,7 +137,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 document.addEventListener('DOMContentLoaded', function () {
     let ctx;
-    if (window.innerWidth < 768) {
+
+    let isMobile = window.innerWidth < 768;
+    if (isMobile) {
         ctx = document.getElementById('profitMobileChart').getContext('2d');
     }
     else {
@@ -197,7 +198,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             enabled: true,
                         },
                         pinch: {
-                            enabled: true
+                            enabled: true,
+                            sensitivity: 0.00005
                         },
                         mode: 'xy',
                         drag: {
@@ -227,6 +229,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 },
                 tooltip: {
+                    enabled: true,  // Tắt tooltip mặc định trên mobile
                     mode: 'index',
                     intersect: false,
                     callbacks: {
@@ -287,13 +290,49 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    if (isMobile) {
+        const canvas = myChart.canvas;
+    
+        // Khi người dùng bắt đầu chạm (touchstart)
+        canvas.addEventListener('touchstart', function(e) {
+            myChart.options.plugins.tooltip.enabled = true;
+            myChart.update();
+        });
+    
+        // Khi người dùng thả tay (touchend)
+        canvas.addEventListener('touchend', function(e) {
+            myChart.options.plugins.tooltip.enabled = false;
+            myChart.update();
+        });
+    }
     // Sự kiện cho nút Reset Zoom
     document.getElementById('resetZoom').addEventListener('click', function() {
         myChart.resetZoom();
     });
 
-    // Sự kiện cho nút toggle Lợi nhuận gửi ngân hàng
-    document.getElementById('toggleBank').addEventListener('click', function() {
+    document.getElementById('resetZoomMobile').addEventListener('click', function() {
+        myChart.resetZoom();
+    });
+
+
+    const toggleBank = document.getElementById('toggleBank');
+
+    const toggleIndex = document.getElementById('toggleIndex');
+
+    const toggleBankMobile = document.getElementById('toggleBankMobile');
+
+    const toggleIndexMobile = document.getElementById('toggleIndexMobile'); 4
+    
+    toggleBank.addEventListener('click', toggleBankFunction);
+
+    toggleBankMobile.addEventListener('touchstart', toggleBankFunction);
+
+    toggleIndex.addEventListener('click', toggleIndexFunction);
+
+    toggleIndexMobile.addEventListener('touchstart', toggleIndexFunction);
+
+
+    function toggleBankFunction() {
         const bankDataset = myChart.data.datasets.find(ds => ds.label === 'Lợi nhuận gửi ngân hàng');
         bankDataset.hidden = !bankDataset.hidden;
         if (!bankDataset.hidden) {
@@ -302,10 +341,9 @@ document.addEventListener('DOMContentLoaded', function () {
             this.classList.remove('selected');
         }
         myChart.update();
-    });
+    }
 
-    // Sự kiện cho nút toggle Trung bình thị trường chứng khoán
-    document.getElementById('toggleIndex').addEventListener('click', function() {
+    function toggleIndexFunction() {
         const indexDataset = myChart.data.datasets.find(ds => ds.label === 'Trung bình thị trường chứng khoán');
         indexDataset.hidden = !indexDataset.hidden;
         if (!indexDataset.hidden) {
@@ -314,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function () {
             this.classList.remove('selected');
         }
         myChart.update();
-    });
+    }
 
     // Mặc định, nếu bạn muốn nút toggle không hiển thị dấu tích (tức là không chọn)
     // Có thể đảm bảo bằng cách xóa class "selected" sau khi khởi tạo

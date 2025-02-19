@@ -288,4 +288,10 @@ button:hover {
             opacity: 1;
         }
     }
+    #profitMobileChart {
+        touch-action: none;
+    }
+    #chartControls {
+        touch-action: none;
+    }
 }

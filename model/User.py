@@ -155,13 +155,36 @@ class User:
             cash_balance = float(db_results['cash_balance'] if db_results else 0)
             
             sql_query = """
-                SELECT COALESCE(SUM(amount), 0) AS total_investment_value
+                SELECT COALESCE(SUM(amount), 0) AS total_injection_value
                 from capital_injections
                 WHERE user_id = %s"""
             cursor.execute(sql_query, (self.user_id,))
             db_results = cursor.fetchone()
-            total_investment_value = float(db_results['total_investment_value'] if db_results else 0)
-            
+            total_investment_value = float(db_results['total_injection_value'] if db_results else 0)
+
+            sql_query = """
+                SELECT amount, withdrawal_date as date
+                from capital_withdrawals
+                WHERE user_id = %s"""
+            cursor.execute(sql_query, (self.user_id,))
+            db_results = cursor.fetchone()
+            total_withdraw_value = float(db_results['amount'] if db_results else 0)
+            withdrawal_date = str(db_results['date']) if db_results else None
+            if total_withdraw_value > 0:
+                sql_query = f"""
+                    select total_investment, total_asset
+                    from profit
+                    WHERE user_id = {self.user_id} and date <= '{withdrawal_date}'
+                    order by date desc
+                    limit 1"""
+                cursor.execute(sql_query)
+                db_results = cursor.fetchone()
+                total_invest = float(db_results['total_investment'])
+                total_asset = float(db_results['total_asset'])
+                prof_percent = (total_asset - total_invest) / total_invest
+                total_withdraw_value = total_withdraw_value * (1 / (1 + prof_percent))
+                
+                total_investment_value -= total_withdraw_value
             sql_query = """
                 SELECT stock_code, current_quantity
                 from portfolio_holdings
@@ -178,6 +201,8 @@ class User:
 
             current_asset_value = total_current_value + cash_balance
 
+            prof_percent = round(((current_asset_value - total_investment_value) / total_investment_value) * 100, 2)
+
             return {
                 'user_id': self.user_id,
                 'name': self.name,
@@ -185,7 +210,7 @@ class User:
                 'cash_balance': cash_balance,
                 'total_current_value': total_current_value,
                 'total_profit_in_cash': current_asset_value - total_investment_value,
-                'total_profit_in_percentage': round(((current_asset_value - total_investment_value) / total_investment_value) * 100, 2),
+                'total_profit_in_percentage': prof_percent,
                 'total_asset_value': current_asset_value
             }
         except mysql.connector.Error as err:

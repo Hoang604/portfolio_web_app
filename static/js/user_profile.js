@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const currentValueColor = profitPercentage < 0 ? 'red' : 'green';
 
             const textLines = [
-                `Vốn: $${parseInt(performanceData.total_investment_value).toLocaleString('en-US').concat('k VND') || 'N/A'}`,
-                `Hiện tại: $${parseInt(performanceData.total_asset_value).toLocaleString('en-US').concat('k VND') || 'N/A'}`,
+                `Vốn: $${parseInt(performanceData.total_investment).toLocaleString('en-US').concat('k VND') || 'N/A'}`,
+                `Hiện tại: $${parseInt(performanceData.total_asset).toLocaleString('en-US').concat('k VND') || 'N/A'}`,
                 `Lợi nhuận: ${performanceData.total_profit_in_percentage || 'N/A'}%`
             ];
 

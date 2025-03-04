@@ -19,9 +19,13 @@ def home():
 @app.route('/user/<int:user_id>', methods=['GET'])
 def portfolio(user_id):
     user = service.get_user_by_id(user_id=user_id)
-    performance_data = service.get_user_performance_data(user_id=user_id)
-    performance_data['total_investment_value'] = performance_data['total_investment_value'] / 1000
-    performance_data['total_asset_value'] = performance_data['total_asset_value'] / 1000
+    performance_datas = service.get_overall_performance_data()
+    for data in performance_datas:
+        if data['user_id'] == user_id:
+            performance_data = data
+            break
+    performance_data['total_investment'] = performance_data['total_investment'] / 1000
+    performance_data['total_asset'] = performance_data['total_asset'] / 1000
     portfolio_data = service.get_portfolio_holdings_data(user_id=user_id)
     stock_values = {}
     for holding in portfolio_data:

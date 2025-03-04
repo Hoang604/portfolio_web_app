@@ -28,13 +28,13 @@
       <div class="table-row" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
           <span>{{ user_perf.name }} ({{ user_perf.user_id }})</span>
           <span>{{ user_perf.cash_balance | thousands }}</span>
-          <span>{{ user_perf.total_investment_value | thousands }}</span>
+          <span>{{ user_perf.total_investment | thousands }}</span>
           <span>{{ user_perf.total_current_value | thousands }}</span>
-          <span>{{ user_perf.total_asset_value | thousands }}</span>
-          <span>{{ user_perf.total_profit_in_cash | thousands }}</span>
-          <span {% if user_perf.total_profit_in_percentage > 0 %}class="profit-positive"{% elif user_perf.total_profit_in_percentage < 0 %}class="profit-negative"{% endif %}>
-              {% if user_perf.total_investment_value and user_perf.total_investment_value != 0 %}
-                  {{ "{:.2f}%".format(user_perf.total_profit_in_percentage) }}
+          <span>{{ user_perf.total_asset | thousands }}</span>
+          <span>{{ user_perf.profit_in_cash | thousands }}</span>
+          <span {% if user_perf.profit_percent > 0 %}class="profit-positive"{% elif user_perf.profit_percent < 0 %}class="profit-negative"{% endif %}>
+              {% if user_perf.total_investment and user_perf.total_investment != 0 %}
+                  {{ "{:.2f}%".format(user_perf.profit_percent) }}
               {% else %}
                   N/A
               {% endif %}
@@ -57,10 +57,10 @@
       {% for user_perf in users_performance %}
       <div class="mobile-table-row">
           <span>{{ user_perf.name }}</span>
-          <span>{{ user_perf.total_asset_value | thousands }}</span>
-          <span {% if user_perf.total_profit_in_percentage > 0 %}class="profit-positive"{% elif user_perf.total_profit_in_percentage < 0 %}class="profit-negative"{% endif %}>
-              {% if user_perf.total_investment_value and user_perf.total_investment_value != 0 %}
-                  {{ "{:.2f}%".format(user_perf.total_profit_in_percentage) }}
+          <span>{{ user_perf.total_asset | thousands }}</span>
+          <span {% if user_perf.profit_percent > 0 %}class="profit-positive"{% elif user_perf.profit_percent < 0 %}class="profit-negative"{% endif %}>
+              {% if user_perf.total_investment and user_perf.total_investment != 0 %}
+                  {{ "{:.2f}%".format(user_perf.profit_percent) }}
               {% else %}
                   N/A
               {% endif %}

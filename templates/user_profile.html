@@ -196,9 +196,15 @@
                     <span>Số tiền (VND)</span>
                 </div>
                 {% for row in injection_data %}
-                <div class="table-row" style="grid-template-columns: 50% 50%; border-bottom: 1px solid #7e94a3"  >
-                    <span>{{ row.injection_date }}</span>
+                <div class="table-row" style="grid-template-columns: 50% 50%; border-bottom: 1px solid #7e94a3; {% if row.amount < 0 %}color: #dc3545;{% endif %}"  >
+                    {% if row.amount > 0 %}
+                    <span>{{ row.date }}</span>
                     <span>{{ row.amount| thousands}}</span>
+                    {% endif %}
+                    {% if row.amount < 0 %}
+                    <span>{{ row.date }}</span>
+                    <span>{{ row.amount| thousands}}</span>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>

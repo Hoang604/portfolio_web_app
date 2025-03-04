@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const textLines = [
                 `Vốn: $${parseInt(performanceData.total_investment).toLocaleString('en-US').concat('k VND') || 'N/A'}`,
                 `Hiện tại: $${parseInt(performanceData.total_asset).toLocaleString('en-US').concat('k VND') || 'N/A'}`,
-                `Lợi nhuận: ${performanceData.total_profit_in_percentage || 'N/A'}%`
+                `Lợi nhuận: ${typeof performanceData.profit_percent === 'number' ? performanceData.profit_percent.toFixed(2) : 'N/A'}%`
             ];
 
             const fontSize = options.fontSize || Math.min(width, height) / 20;

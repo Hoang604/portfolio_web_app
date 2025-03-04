@@ -16,7 +16,7 @@ class PortfolioService:
             try:
                 user_perf = user.get_overall_perfomance_view(mydb=self.db)
                 user_perf.update(self.get_profit_data(user.user_id)[-1])
-                pop_keys = ['date', 'total_asset_bank', 'total_asset_index', 'profit_percent']
+                pop_keys = ['date', 'total_asset_bank', 'total_asset_index']
                 for key in pop_keys:
                     user_perf.pop(key)
                 

@@ -24,6 +24,7 @@ def portfolio(user_id):
         if data['user_id'] == user_id:
             performance_data = data
             break
+    print(performance_data)
     performance_data['total_investment'] = performance_data['total_investment'] / 1000
     performance_data['total_asset'] = performance_data['total_asset'] / 1000
     portfolio_data = service.get_portfolio_holdings_data(user_id=user_id)

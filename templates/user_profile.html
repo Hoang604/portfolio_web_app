@@ -36,7 +36,7 @@
                 {% if portfolio_data %}
                     {% for row in portfolio_data %}
                     <div class="portfolio-row table-row">
-                        <span><span>{{ row.company_name }}</span></span>
+                        <span>{{ row.company_name }}</span>
                         <span>{{ row.stock_code }}</span>
                         <span>{{ row.current_quantity }}</span>
                         <span>{{ row.average_cost | thousands}}</span>

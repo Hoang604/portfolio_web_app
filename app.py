@@ -1,6 +1,6 @@
 import logging
 import sys
-from flask import Flask, render_template, abort
+from flask import Flask, render_template, abort, request
 from utils.database import connect_db
 from Service import PortfolioService, UserNotFoundException, PortfolioDataError
 
@@ -23,6 +23,14 @@ except Exception as e:
         f"Application startup failed: Could not connect to database. Error: {e}")
     # If the database isn't available on startup, the app can't run.
     sys.exit("Exiting: Database connection failed.")
+
+
+@app.after_request
+def add_header(response):
+    """Disable caching for dynamic routes to prevent stale data on reload."""
+    if not request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    return response
 
 
 @app.route('/', methods=['GET'])

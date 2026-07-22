@@ -284,6 +284,7 @@ class PerformanceService:
             injection_data = self.get_capital_flow_data(user_id)
             dividend_data = dividend_service.get_user_dividends(user_id)
             user_total_tax = ledger_service.get_total_tax(user_id=user_id)
+            user_cash_dividend = dividend_service.get_total_cash_dividend(user_id)
 
             # Chart values
             stock_values = {
@@ -312,6 +313,7 @@ class PerformanceService:
                 'injection_data': injection_data,
                 'dividend_data': dividend_data,
                 'user_total_tax': user_total_tax,
+                'user_cash_dividend': user_cash_dividend,
                 'chart_labels': chart_labels,
                 'chart_data': chart_data,
                 'profit_chart_labels': profit_chart_labels,
@@ -340,23 +342,55 @@ class DividendService:
         else:
             yield self.db_or_pool
 
+    def get_total_cash_dividend(self, user_id: int) -> float:
+        """Calculates total cash dividend income received for a user."""
+        sql_query = """
+            SELECT COALESCE(SUM(p.credit), 0) as total_dividend
+            FROM portfolio_postingorm p
+            JOIN portfolio_journalentryorm je ON p.journal_entry_id = je.id
+            WHERE je.user_id = %s AND p.account_name = 'Revenue:DividendIncome';
+        """
+        with self._get_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute(sql_query, (user_id,))
+                res = cursor.fetchone()
+                return float(res['total_dividend']) if res and res['total_dividend'] else 0.0
+
     def get_user_dividends(self, user_id: int) -> list:
-        """Fetches dividend events strictly for stocks in user's holdings or transactions."""
+        """Fetches dividend events strictly for stocks where user held shares at the ex_date in a single SQL query (O(1) queries)."""
         sql_query = """
             SELECT
                 d.id, d.stock_id, d.ex_date, d.record_date, d.payment_date,
-                d.dividend_type, d.cash_amount_per_share, d.stock_ratio_numerator, d.stock_ratio_denominator
+                d.dividend_type, d.cash_amount_per_share, d.stock_ratio_numerator, d.stock_ratio_denominator,
+                COALESCE(
+                    (
+                        SELECT SUM(p.credit)
+                        FROM portfolio_postingorm p
+                        JOIN portfolio_journalentryorm je ON p.journal_entry_id = je.id
+                        WHERE je.user_id = %s 
+                          AND p.stock_id = d.stock_id 
+                          AND p.account_name = 'Revenue:DividendIncome'
+                          AND (je.entry_date = d.payment_date OR je.entry_date = d.record_date OR je.entry_date = d.ex_date)
+                    ), 0
+                ) as received_amount,
+                COALESCE(
+                    (
+                        SELECT SUM(CASE WHEN t.transaction_type = 'BUY' THEN t.quantity ELSE -t.quantity END)
+                        FROM portfolio_transaction t
+                        WHERE t.user_id = %s AND t.stock_id = d.stock_id AND t.transaction_date <= d.ex_date
+                    ), 0
+                ) as held_qty_at_ex_date
             FROM portfolio_dividend d
-            WHERE d.stock_id IN (
-                SELECT stock_id FROM portfolio_portfolioholding WHERE user_id = %s
-            ) OR d.stock_id IN (
-                SELECT stock_id FROM portfolio_transaction WHERE user_id = %s
-            )
+            WHERE (
+                SELECT COALESCE(SUM(CASE WHEN t.transaction_type = 'BUY' THEN t.quantity ELSE -t.quantity END), 0)
+                FROM portfolio_transaction t
+                WHERE t.user_id = %s AND t.stock_id = d.stock_id AND t.transaction_date <= d.ex_date
+            ) > 0
             ORDER BY d.ex_date DESC;
         """
         with self._get_connection() as conn:
             with conn.cursor(dictionary=True) as cursor:
-                cursor.execute(sql_query, (user_id, user_id))
+                cursor.execute(sql_query, (user_id, user_id, user_id))
                 rows = cursor.fetchall()
                 for r in rows:
                     for d_col in ['ex_date', 'record_date', 'payment_date']:
@@ -364,6 +398,17 @@ class DividendService:
                             r[d_col] = r[d_col].strftime('%Y-%m-%d')
                     if r['cash_amount_per_share']:
                         r['cash_amount_per_share'] = float(r['cash_amount_per_share'])
+                    if 'received_amount' in r and r['received_amount'] is not None:
+                        r['received_amount'] = float(r['received_amount'])
+
+                    held_qty = float(r['held_qty_at_ex_date']) if r.get('held_qty_at_ex_date') is not None else 0.0
+                    r['received_shares'] = 0.0
+                    if r['dividend_type'] != 'Cash' and r['stock_ratio_numerator'] and r['stock_ratio_denominator']:
+                        if held_qty > 0:
+                            num = float(r['stock_ratio_numerator'])
+                            den = float(r['stock_ratio_denominator'])
+                            r['received_shares'] = round(held_qty * (num / den), 2)
+
                 return rows
 
 

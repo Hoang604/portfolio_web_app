@@ -24,6 +24,10 @@
             <i data-lucide="receipt"></i>
             <span>Tổng Thuế: {{ user_total_tax | thousands }} đ</span>
         </div>
+        <div class="dividend-stat-pill" title="Tổng tiền cổ tức tiền mặt đã nhận">
+            <i data-lucide="gift"></i>
+            <span>Tổng Cổ Tức Tiền: {{ user_cash_dividend | thousands }} đ</span>
+        </div>
         <button id="btnOpenExpertModal" class="btn-expert-mode">
             <i data-lucide="shield-check"></i> Chế độ Kế toán Chuyên gia
         </button>
@@ -83,9 +87,10 @@
                 <div class="table-scroll-body">
                     <div class="profile-table-header dividend-grid sticky-header">
                         <span style="text-align: center;">Mã CP</span>
-                        <span style="text-align: left;">Ngày Thanh Toán</span>
-                        <span style="text-align: center;">Loại Cổ Tức</span>
-                        <span style="text-align: right;">Giá Trị</span>
+                        <span style="text-align: left;">Ngày Trả</span>
+                        <span style="text-align: center;">Loại</span>
+                        <span style="text-align: right;">Mức/Tỉ Lệ</span>
+                        <span style="text-align: right;">Thực Nhận</span>
                     </div>
                     {% if dividend_data %}
                         {% for div in dividend_data %}
@@ -99,9 +104,20 @@
                             </span>
                             <span style="text-align: right; font-weight: 600;">
                                 {% if div.dividend_type == 'Cash' %}
-                                    {{ div.cash_amount_per_share | thousands }} đ / cp
+                                    {{ div.cash_amount_per_share | thousands }} đ
                                 {% else %}
                                     {{ div.stock_ratio_numerator | int }}:{{ div.stock_ratio_denominator | int }}
+                                {% endif %}
+                            </span>
+                            <span style="text-align: right; font-weight: 600;">
+                                {% if div.dividend_type == 'Cash' and div.received_amount and div.received_amount > 0 %}
+                                    <span style="color: #4ade80;">+{{ div.received_amount | thousands }} đ</span>
+                                {% elif div.dividend_type == 'Cash' %}
+                                    <span style="color: #64748b;">0 đ</span>
+                                {% elif div.received_shares and div.received_shares > 0 %}
+                                    <span style="color: #c084fc;">+{{ div.received_shares | thousands }} CP</span>
+                                {% else %}
+                                    <span style="color: #64748b;">0 CP</span>
                                 {% endif %}
                             </span>
                         </div>

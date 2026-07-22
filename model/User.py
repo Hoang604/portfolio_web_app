@@ -17,10 +17,10 @@ class User:
         if not mydb:
             return None
         try:
-            cursor = mydb.cursor(dictionary=True)
-            cursor.execute("SELECT * FROM portfolio_user WHERE id = %s", (id,))
-            result = cursor.fetchone()
-            return User(**result) if result else None
+            with mydb.cursor(dictionary=True) as cursor:
+                cursor.execute("SELECT * FROM portfolio_user WHERE id = %s", (id,))
+                result = cursor.fetchone()
+                return User(**result) if result else None
         except mysql.connector.Error as err:
             print(f"Error get_by_id User: {err}")
             return None
@@ -30,10 +30,10 @@ class User:
         if not mydb:
             return []
         try:
-            cursor = mydb.cursor(dictionary=True)
-            cursor.execute("SELECT * FROM portfolio_user")
-            results = cursor.fetchall()
-            return [User(**row) for row in results]
+            with mydb.cursor(dictionary=True) as cursor:
+                cursor.execute("SELECT * FROM portfolio_user")
+                results = cursor.fetchall()
+                return [User(**row) for row in results]
         except mysql.connector.Error as err:
             print(f"Error get_all Users: {err}")
             return []

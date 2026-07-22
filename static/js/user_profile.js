@@ -1,10 +1,9 @@
 document.addEventListener("DOMContentLoaded", function () {
-  let ctx;
-  if (window.innerWidth < 768) {
-    ctx = document.getElementById("portfolioMobilePieChart").getContext("2d");
-  } else {
-    ctx = document.getElementById("portfolioPieChart").getContext("2d");
-  }
+  let ctx = document.getElementById("portfolioPieChart")
+    ? document.getElementById("portfolioPieChart").getContext("2d")
+    : null;
+  if (!ctx) return;
+
   const doughnutCenterText = {
     id: "doughnutCenterText",
     afterDatasetsDraw(chart, args, options) {
@@ -14,36 +13,38 @@ document.addEventListener("DOMContentLoaded", function () {
       } = chart;
       ctx.save();
 
-      // ensure performanceData exists and profitPercentage is a Number
       if (options.performanceData.profit_percent != null) {
         options.performanceData.profit_percent = Number(
-          options.performanceData.profit_percent
+          options.performanceData.profit_percent,
         );
       }
       const performanceData = options.performanceData || {};
-      const profitPercentage = performanceData.total_profit_in_percentage;
-      const currentValueColor = profitPercentage < 0 ? "red" : "green";
+      const profitPercentage = performanceData.profit_percent || 0;
+      const currentValueColor = profitPercentage < 0 ? "#dc3545" : "#28a745";
+
+      const formatVNDShort = (val) => {
+        if (val == null) return "N/A";
+        const v = Number(val);
+        if (Math.abs(v) >= 1000000) {
+          return (v / 1000000).toFixed(2) + " Tr VNĐ";
+        }
+        return v.toLocaleString("en-US") + " VNĐ";
+      };
 
       const textLines = [
-        `Vốn: $${
-          parseInt(performanceData.total_investment)
-            .toLocaleString("en-US")
-            .concat("k VND") || "N/A"
-        }`,
-        `Hiện tại: $${
-          parseInt(performanceData.total_asset)
-            .toLocaleString("en-US")
-            .concat("k VND") || "N/A"
-        }`,
+        `Vốn: ${formatVNDShort(performanceData.total_investment)}`,
+        `Hiện tại: ${formatVNDShort(performanceData.total_asset)}`,
         `Lợi nhuận: ${
-          typeof performanceData.profit_percent === "number"
-            ? performanceData.profit_percent.toFixed(2)
+          typeof profitPercentage === "number"
+            ? (profitPercentage >= 0 ? "+" : "") +
+              profitPercentage.toFixed(2) +
+              "%"
             : "N/A"
-        }%`,
+        }`,
       ];
 
       const fontSize = options.fontSize || Math.min(width, height) / 20;
-      const fontStyle = options.fontStyle || "normal";
+      const fontStyle = options.fontStyle || "bold";
       const fontFamily = options.fontFamily || "Segoe UI, sans-serif";
       const defaultFontColor = options.fontColor || "#3498db";
 
@@ -65,7 +66,8 @@ document.addEventListener("DOMContentLoaded", function () {
       ctx.restore();
     },
   };
-  const myPieChart = new Chart(ctx, {
+
+  new Chart(ctx, {
     type: "doughnut",
     data: {
       labels: chart_labels,
@@ -82,7 +84,6 @@ document.addEventListener("DOMContentLoaded", function () {
             "rgba(199, 199, 199, 0.7)",
             "rgba(100, 205, 100, 0.7)",
             "rgba(220, 180, 0, 0.7)",
-            "rgba(220, 20, 60, 0.7)",
           ],
           borderColor: [
             "rgba(255, 99, 132, 1)",
@@ -93,174 +94,124 @@ document.addEventListener("DOMContentLoaded", function () {
             "rgba(255, 159, 64, 1)",
             "rgba(199, 199, 199, 1)",
             "rgba(100, 205, 100, 1)",
-            "rgba(220, 180, 0, 1)",
-            "rgba(220, 20, 60, 1)",
           ],
           borderWidth: 1,
-          segmentRadius: 10,
-          hoverOffset: 10,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutoutPercentage: 50,
-      layout: {
-        padding: { bottom: 10 },
-      },
+      cutoutPercentage: 60,
+      cutout: "60%",
       plugins: {
         legend: {
           position: "top",
-          labels: {
-            fontColor: "rgba(255,255,255)",
-            fontSize: 14,
-          },
+          labels: { color: "#a5b8c9", font: { size: 12 } },
         },
         tooltip: {
           callbacks: {
             label: function (context) {
               let label = context.label || "";
-              if (label) {
-                label += ": ";
-              }
+              if (label) label += ": ";
               if (context.raw !== null) {
-                label += context.raw.toLocaleString("en-US") + " VND";
+                label += Number(context.raw).toLocaleString("en-US") + " VNĐ";
               }
               return label;
             },
           },
-        },
-        title: {
-          display: true,
-          text: "Phân bổ Danh mục Đầu tư",
-          fontSize: 16,
-          fontColor: "rgba(255,255,255)",
         },
         doughnutCenterText: {
           performanceData: performance_data,
           fontColor: "#3498db",
           fontSize: 13,
           fontStyle: "bold",
-          fontFamily: "Arial, sans-serif",
         },
-      },
-      onHover: (event, chartElement) => {
-        if (chartElement.length) {
-          ctx.canvas.style.cursor = "pointer";
-        } else {
-          ctx.canvas.style.cursor = "default";
-        }
       },
     },
     plugins: [doughnutCenterText],
   });
 });
 
+// Profit Line Chart Initialization
 document.addEventListener("DOMContentLoaded", function () {
-  let ctx;
+  const chartCanvas = document.getElementById("profitChart");
+  if (!chartCanvas) return;
 
-  let isMobile = window.innerWidth < 768;
-  if (isMobile) {
-    ctx = document.getElementById("profitMobileChart").getContext("2d");
-  } else {
-    ctx = document.getElementById("profitChart").getContext("2d");
-  }
+  const ctx = chartCanvas.getContext("2d");
   const myChart = new Chart(ctx, {
     type: "line",
     data: {
       labels: profit_chart_labels,
       datasets: [
         {
-          label: "Danh mục đầu tư của bạn",
+          label: "Tài sản danh mục của bạn",
           data: profit_chart_total_asset,
-          borderColor: "rgb(20, 255, 32)",
+          borderColor: "rgb(40, 167, 69)",
+          backgroundColor: "rgba(40, 167, 69, 0.1)",
           fill: false,
           hidden: false,
           pointRadius: 0,
+          borderWidth: 2,
         },
         {
-          label: "Lợi nhuận gửi ngân hàng",
+          label: "Lợi nhuận gửi ngân hàng (5%/năm)",
           data: profit_chart_total_asset_bank,
-          borderColor: "rgb(204, 62, 35)",
+          borderColor: "rgb(255, 193, 7)",
           fill: false,
           hidden: true,
           pointRadius: 0,
+          borderWidth: 2,
         },
         {
-          label: "Trung bình thị trường chứng khoán",
+          label: "Chỉ số VN-INDEX",
           data: profit_chart_total_asset_index,
-          borderColor: "rgb(255, 99, 132)",
+          borderColor: "rgb(153, 102, 255)",
           fill: false,
           hidden: true,
           pointRadius: 0,
+          borderWidth: 2,
         },
         {
-          label: "Tổng vốn đầu tư",
+          label: "Tổng vốn đã góp",
           data: profit_chart_total_investment,
-          borderColor: "rgb(75, 192, 192)",
+          borderColor: "rgb(52, 152, 219)",
           fill: false,
           hidden: false,
           pointRadius: 0,
+          borderWidth: 2,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: {
-        mode: "index",
-        intersect: false,
-      },
+      interaction: { mode: "index", intersect: false },
       plugins: {
         zoom: {
           zoom: {
-            wheel: {
-              enabled: true,
-            },
-            pinch: {
-              enabled: true,
-              sensitivity: 0.00005,
-            },
-            mode: "xy",
-            drag: {
-              enabled: true,
-              backgroundColor: "rgba(225,225,225,0.3)",
-              borderColor: "rgba(225,225,225)",
-              borderWidth: 1,
-            },
+            wheel: { enabled: true },
+            pinch: { enabled: true },
+            mode: "x",
           },
-          pan: {
-            enabled: true,
-            mode: "xy",
-          },
-          limits: {
-            y: { min: "original", max: "original" },
-            x: { min: "original", max: "original" },
-          },
+          pan: { enabled: true, mode: "x" },
         },
         legend: {
           display: true,
           position: "top",
-          labels: {
-            filter: function (legendItem, data) {
-              // Chỉ hiển thị legend của các dataset không bị ẩn
-              return !data.datasets[legendItem.datasetIndex].hidden;
-            },
-          },
+          labels: { color: "#a5b8c9" },
         },
         tooltip: {
-          enabled: true, // Tắt tooltip mặc định trên mobile
+          enabled: true,
           mode: "index",
           intersect: false,
           callbacks: {
             label: function (context) {
               let label = context.dataset.label || "";
-              if (label) {
-                label += ": ";
-              }
+              if (label) label += ": ";
               if (context.parsed.y !== null) {
-                label += context.parsed.y.toLocaleString("en-US") + "k VND";
+                label +=
+                  Number(context.parsed.y).toLocaleString("en-US") + " VNĐ";
               }
               return label;
             },
@@ -269,148 +220,268 @@ document.addEventListener("DOMContentLoaded", function () {
         title: {
           display: true,
           text:
-            "Lịch sử lợi nhuận (lợi nhuận ước tính: " +
-            (profit_percentage ? profit_percentage.toFixed(2) : "") +
+            "Biến động tài sản theo thời gian (IRR ước tính: " +
+            (profit_percentage
+              ? (profit_percentage >= 0 ? "+" : "") +
+                profit_percentage.toFixed(2)
+              : "0.00") +
             "%/năm)",
-          font: {
-            size: 16,
-          },
+          color: "#3498db",
+          font: { size: 15 },
         },
-      },
-      layout: {
-        padding: 0,
       },
       scales: {
         x: {
           display: true,
-          title: {
-            display: true,
-            text: "Tháng", // Tiêu đề của trục x
-          },
-          grid: {
-            display: true,
-            color: "rgba(255,255,255,0.05)", // Màu của lưới trục x
-          },
-          ticks: {
-            maxTicksLimit: 6,
-          },
+          title: { display: true, text: "Thời gian (Ngày)", color: "#a5b8c9" },
+          grid: { color: "rgba(255,255,255,0.05)" },
+          ticks: { color: "#a5b8c9", maxTicksLimit: 8 },
         },
         y: {
           display: true,
-          title: {
-            display: true,
-            text: "Giá trị (k VND)", // Tiêu đề của trục y
-          },
-          grid: {
-            display: true,
-            color: "rgba(255,255,255,0.05)", // Màu của lưới trục y
-          },
+          title: { display: true, text: "Giá trị (VNĐ)", color: "#a5b8c9" },
+          grid: { color: "rgba(255,255,255,0.05)" },
           ticks: {
-            maxTicksLimit: 6,
+            color: "#a5b8c9",
+            callback: function (val) {
+              if (Math.abs(val) >= 1000000) {
+                return (val / 1000000).toFixed(1) + " Tr";
+              }
+              return val.toLocaleString("en-US");
+            },
           },
         },
       },
     },
   });
 
-  if (isMobile) {
-    const canvas = myChart.canvas;
-
-    // Khi người dùng bắt đầu chạm (touchstart)
-    canvas.addEventListener("touchstart", function (e) {
-      myChart.options.plugins.tooltip.enabled = true;
-      myChart.update();
-    });
-
-    // Khi người dùng thả tay (touchend)
-    canvas.addEventListener("touchend", function (e) {
-      myChart.options.plugins.tooltip.enabled = false;
-      myChart.update();
-    });
-  }
-  // Sự kiện cho nút Reset Zoom
   document.getElementById("resetZoom").addEventListener("click", function () {
     myChart.resetZoom();
   });
 
-  document
-    .getElementById("resetZoomMobile")
-    .addEventListener("click", function () {
-      myChart.resetZoom();
-    });
-
   const toggleBank = document.getElementById("toggleBank");
-
   const toggleIndex = document.getElementById("toggleIndex");
 
-  const toggleBankMobile = document.getElementById("toggleBankMobile");
-
-  const toggleIndexMobile = document.getElementById("toggleIndexMobile");
-  4;
-
-  toggleBank.addEventListener("click", toggleBankFunction);
-
-  toggleBankMobile.addEventListener("touchstart", toggleBankFunction);
-
-  toggleIndex.addEventListener("click", toggleIndexFunction);
-
-  toggleIndexMobile.addEventListener("touchstart", toggleIndexFunction);
-
-  function toggleBankFunction() {
-    const bankDataset = myChart.data.datasets.find(
-      (ds) => ds.label === "Lợi nhuận gửi ngân hàng"
-    );
-    bankDataset.hidden = !bankDataset.hidden;
-    if (!bankDataset.hidden) {
-      this.classList.add("selected");
-    } else {
-      this.classList.remove("selected");
-    }
-    myChart.update();
+  if (toggleBank) {
+    toggleBank.addEventListener("click", function () {
+      const bankDs = myChart.data.datasets.find((ds) =>
+        ds.label.includes("ngân hàng"),
+      );
+      if (bankDs) {
+        bankDs.hidden = !bankDs.hidden;
+        this.classList.toggle("selected", !bankDs.hidden);
+        myChart.update();
+      }
+    });
   }
 
-  function toggleIndexFunction() {
-    const indexDataset = myChart.data.datasets.find(
-      (ds) => ds.label === "Trung bình thị trường chứng khoán"
-    );
-    indexDataset.hidden = !indexDataset.hidden;
-    if (!indexDataset.hidden) {
-      this.classList.add("selected");
-    } else {
-      this.classList.remove("selected");
-    }
-    myChart.update();
+  if (toggleIndex) {
+    toggleIndex.addEventListener("click", function () {
+      const indexDs = myChart.data.datasets.find((ds) =>
+        ds.label.includes("VN-INDEX"),
+      );
+      if (indexDs) {
+        indexDs.hidden = !indexDs.hidden;
+        this.classList.toggle("selected", !indexDs.hidden);
+        myChart.update();
+      }
+    });
   }
-
-  // Mặc định, nếu bạn muốn nút toggle không hiển thị dấu tích (tức là không chọn)
-  // Có thể đảm bảo bằng cách xóa class "selected" sau khi khởi tạo
-  document.getElementById("toggleBank").classList.remove("selected");
-  document.getElementById("toggleIndex").classList.remove("selected");
 });
 
+// Expert Double-Entry Ledger Modal Logic
 document.addEventListener("DOMContentLoaded", function () {
-  // Chỉ áp dụng cho mobile (window.innerWidth < 768)
-  if (window.innerWidth < 768) {
-    // Chọn tất cả các phần tử có class .slide-left
-    const slideElements = document.querySelectorAll(".slide-left");
+  const btnOpenModal = document.getElementById("btnOpenExpertModal");
+  const btnCloseModal = document.getElementById("btnCloseExpertModal");
+  const modalOverlay = document.getElementById("expertLedgerModal");
+  const containerList = document.getElementById("ledgerEntriesList");
 
-    // Tạo Intersection Observer
-    const observer = new IntersectionObserver(
-      (entries, obs) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("show");
-            // Ngừng theo dõi sau khi animation được kích hoạt
-            obs.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1 }
-    ); // Khi 10% phần tử xuất hiện trong viewport
+  if (!btnOpenModal || !modalOverlay) return;
 
-    // Áp dụng observer cho các phần tử
-    slideElements.forEach((el) => {
-      observer.observe(el);
+  btnOpenModal.addEventListener("click", function () {
+    modalOverlay.style.display = "flex";
+    fetchLedgerData();
+  });
+
+  if (btnCloseModal) {
+    btnCloseModal.addEventListener("click", function () {
+      modalOverlay.style.display = "none";
     });
+  }
+
+  modalOverlay.addEventListener("click", function (e) {
+    if (e.target === modalOverlay) {
+      modalOverlay.style.display = "none";
+    }
+  });
+
+  let allLedgerEntries = [];
+  let currentSelectedCategory = "ALL";
+
+  function fetchLedgerData() {
+    containerList.innerHTML =
+      '<div class="loading-spinner">Đang tải nhật ký kế toán...</div>';
+    const pillsContainer = document.getElementById("ledgerFilterPills");
+    if (pillsContainer) pillsContainer.innerHTML = "";
+
+    fetch(`/api/v1/user/${current_user_id}/ledger`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status === "success" && data.journal_entries) {
+          allLedgerEntries = data.journal_entries;
+          currentSelectedCategory = "ALL";
+          renderFilterPills();
+          renderFilteredLedgerEntries();
+        } else {
+          containerList.innerHTML =
+            '<div class="error-msg">Không thể tải dữ liệu nhật ký.</div>';
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        containerList.innerHTML =
+          '<div class="error-msg">Đã xảy ra lỗi khi kết nối API.</div>';
+      });
+  }
+
+  function renderFilterPills() {
+    const pillsContainer = document.getElementById("ledgerFilterPills");
+    if (!pillsContainer || allLedgerEntries.length === 0) return;
+
+    // Dynamically extract categories from data
+    const categoriesSet = new Set();
+    allLedgerEntries.forEach((e) => {
+      if (e.category) categoriesSet.add(e.category);
+    });
+
+    const categories = Array.from(categoriesSet);
+
+    let pillsHtml = `
+      <button class="btn-ledger-pill ${currentSelectedCategory === "ALL" ? "active" : ""}" data-cat="ALL">
+        Tất Cả (${allLedgerEntries.length})
+      </button>
+    `;
+
+    categories.forEach((cat) => {
+      const count = allLedgerEntries.filter((e) => e.category === cat).length;
+      pillsHtml += `
+        <button class="btn-ledger-pill ${currentSelectedCategory === cat ? "active" : ""}" data-cat="${cat}">
+          ${cat} (${count})
+        </button>
+      `;
+    });
+
+    pillsContainer.innerHTML = pillsHtml;
+
+    // Bind click events to pills
+    pillsContainer.querySelectorAll(".btn-ledger-pill").forEach((btn) => {
+      btn.addEventListener("click", function () {
+        currentSelectedCategory = this.getAttribute("data-cat");
+        pillsContainer.querySelectorAll(".btn-ledger-pill").forEach((b) => b.classList.remove("active"));
+        this.classList.add("active");
+        renderFilteredLedgerEntries();
+      });
+    });
+  }
+
+  function renderFilteredLedgerEntries() {
+    let filtered = allLedgerEntries;
+    if (currentSelectedCategory !== "ALL") {
+      filtered = allLedgerEntries.filter((e) => e.category === currentSelectedCategory);
+    }
+    renderLedgerEntries(filtered);
+  }
+
+  function humanizeAccountName(acc) {
+    const map = {
+      "Assets:Cash": "Tài Khoản Tiền Mặt",
+      "Assets:StockInventory": "Kho Cổ Phiếu",
+      "Assets:DividendReceivable": "Cổ Tức Phải Thu",
+      "Equity:Capital": "Nguồn Vốn Đầu Tư",
+      "Expenses:TransactionFee": "Phí Giao Dịch TCBS",
+      "Expenses:TransactionTax": "Thuế Bán Cổ Phiếu (0.1%)",
+      "Expenses:DividendTax": "Thuế Cổ Tức (5%)",
+      "Revenue:DividendIncome": "Doanh Thu Cổ Tức",
+    };
+    return map[acc] || acc;
+  }
+
+  function humanizeAccountType(type) {
+    const map = {
+      ASSET: "Tài Sản",
+      EXPENSE: "Chi Phí",
+      EQUITY: "Vốn Chủ",
+      REVENUE: "Doanh Thu",
+    };
+    return map[type] || type;
+  }
+
+  function humanizeDescription(desc) {
+    if (!desc) return "";
+    if (desc === "Capital Injection") return "Nộp thêm vốn đầu tư";
+    if (desc.startsWith("BUY ")) {
+      return desc.replace(/^BUY\s+([\d.]+)\s+([A-Z0-9]+)\s+@\s+([\d.]+)/, (m, qty, code, price) => {
+        return `Mua ${Number(qty).toLocaleString("en-US")} CP ${code} @ ${Number(price).toLocaleString("en-US")} đ`;
+      });
+    }
+    if (desc.startsWith("SELL ")) {
+      return desc.replace(/^SELL\s+([\d.]+)\s+([A-Z0-9]+)\s+@\s+([\d.]+)/, (m, qty, code, price) => {
+        return `Bán ${Number(qty).toLocaleString("en-US")} CP ${code} @ ${Number(price).toLocaleString("en-US")} đ`;
+      });
+    }
+    if (desc.startsWith("Settle cash dividend for ")) {
+      return desc.replace("Settle cash dividend for ", "Thanh toán cổ tức tiền mặt ");
+    }
+    if (desc.startsWith("Accrue cash dividend for ")) {
+      return desc.replace("Accrue cash dividend for ", "Ghi nhận quyền cổ tức ");
+    }
+    return desc;
+  }
+
+  function renderLedgerEntries(entries) {
+    if (entries.length === 0) {
+      containerList.innerHTML =
+        '<div class="empty-msg">Chưa có bút toán kế toán nào.</div>';
+      return;
+    }
+
+    let html = "";
+    entries.forEach((e) => {
+      html += `
+        <div class="ledger-entry-card">
+          <div class="entry-header">
+            <span class="entry-date">${e.entry_date}</span>
+            <span class="entry-desc">${humanizeDescription(e.description)}</span>
+          </div>
+          <div class="postings-table">
+            <div class="postings-head">
+              <span>Tài Khoản Kế Toán</span>
+              <span style="text-align: center;">Loại</span>
+              <span style="text-align: right;">Nợ</span>
+              <span style="text-align: right;">Có</span>
+              <span style="text-align: center;">Mã CP</span>
+            </div>
+            ${e.postings
+              .map(
+                (p) => `
+              <div class="posting-row">
+                <span class="account-name" title="${humanizeAccountName(p.account_name)}">${humanizeAccountName(p.account_name)}</span>
+                <span class="account-type">${humanizeAccountType(p.account_type)}</span>
+                <span class="debit-val">${p.debit > 0 ? p.debit.toLocaleString("en-US") + " đ" : "-"}</span>
+                <span class="credit-val">${p.credit > 0 ? p.credit.toLocaleString("en-US") + " đ" : "-"}</span>
+                <span class="stock-code">${p.stock_id ? '<span class="stock-badge">' + p.stock_id + '</span>' : "-"}</span>
+              </div>
+            `,
+              )
+              .join("")}
+          </div>
+        </div>
+      `;
+    });
+
+    containerList.innerHTML = html;
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
   }
 });

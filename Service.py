@@ -1,10 +1,11 @@
 from model.User import User
 import mysql.connector
+from mysql.connector.pooling import MySQLConnectionPool
 import logging
+from typing import Optional, Union, Generator
+from contextlib import contextmanager
 
 # Custom Exceptions
-
-
 class UserNotFoundException(Exception):
     pass
 
@@ -13,65 +14,39 @@ class PortfolioDataError(Exception):
     pass
 
 
-class PortfolioService:
-    """Service layer for handling portfolio business logic."""
+class PerformanceService:
+    """Deep module handling overall portfolio performance aggregation in base VND."""
 
-    def __init__(self, mydb: mysql.connector):
-        """Initializes the PortfolioService.
+    def __init__(self, db_or_pool: Union[mysql.connector.MySQLConnection, MySQLConnectionPool]):
+        self.db_or_pool = db_or_pool
 
-        Args:
-            mydb: An active mysql.connector database connection.
-        """
-        self.db = mydb
+    @contextmanager
+    def _get_connection(self) -> Generator[mysql.connector.MySQLConnection, None, None]:
+        if isinstance(self.db_or_pool, MySQLConnectionPool):
+            conn = self.db_or_pool.get_connection()
+            try:
+                yield conn
+            finally:
+                conn.close()
+        else:
+            yield self.db_or_pool
 
-    def get_user_by_id(self, user_id):
-        """Retrieves a single user by their ID.
-
-        Args:
-            user_id: The ID of the user to retrieve.
-
-        Returns:
-            A User object if found, otherwise None.
-        """
-        return User.get_by_id(user_id, self.db)
-
-    def _get_user_overall_performance_view(self, user: User) -> dict:
-        """Calculates a user's core performance data using a single SQL query.
-
-        This private method efficiently computes the total value of all stocks
-        held by a user and combines it with their cash balance. It is designed
-        to be called by public methods that build upon this data.
-
-        Args:
-            user: The User object for whom to calculate performance.
-
-        Returns:
-            A dictionary containing the user's core performance data, for example:
-            {
-                'user_id': 1,
-                'name': 'John Doe',
-                'cash_balance': 5000.00,
-                'total_current_value': 15000.00
-            }
-            Returns an empty dict if the calculation fails.
-        """
+    def get_user_performance_view(self, user: User) -> dict:
+        """Calculates a user's core performance data using exact VND values without 1000x multipliers."""
         if not user.id:
-            logging.warning(
-                "Attempted to get overall performance for a user without an ID.")
+            logging.warning("Attempted to get overall performance for a user without an ID.")
             return {}
-        if not self.db:
-            raise ConnectionError("Database connection is not available.")
 
         sql_query = """
             SELECT
                 u.id AS user_id,
                 u.name,
                 u.cash_balance,
-                COALESCE(SUM(ph.current_quantity * latest_prices.price * 1000), 0) AS total_current_value
+                COALESCE(SUM(ph.current_quantity * latest_prices.price), 0) AS total_current_value
             FROM
                 portfolio_user u
             LEFT JOIN
-                portfolio_portfolioholding ph ON u.id = ph.user_id
+                portfolio_portfolioholding ph ON u.id = ph.user_id AND ph.current_quantity > 0
             LEFT JOIN
                 (
                     SELECT stock_id, price
@@ -81,6 +56,9 @@ class PortfolioService:
                             price,
                             ROW_NUMBER() OVER(PARTITION BY stock_id ORDER BY date DESC) as rn
                         FROM portfolio_stockprice
+                        WHERE stock_id IN (
+                            SELECT DISTINCT stock_id FROM portfolio_portfolioholding WHERE user_id = %s AND current_quantity > 0
+                        )
                     ) AS ranked_prices
                     WHERE rn = 1
                 ) AS latest_prices ON ph.stock_id = latest_prices.stock_id
@@ -90,49 +68,19 @@ class PortfolioService:
                 u.id, u.name, u.cash_balance;"""
 
         try:
-            cursor = self.db.cursor(dictionary=True)
-            cursor.execute(sql_query, (user.id,))
-            result = cursor.fetchone()
-            return result if result else {}
+            with self._get_connection() as conn:
+                with conn.cursor(dictionary=True) as cursor:
+                    cursor.execute(sql_query, (user.id, user.id))
+                    result = cursor.fetchone()
+                    return result if result else {}
         except mysql.connector.Error as err:
-            logging.error(
-                f"Database error while getting overall performance for User {user.name}: {err}")
-            raise PortfolioDataError(
-                f"Could not retrieve overall performance for User {user.name}") from err
+            logging.error(f"Database error while getting overall performance for User {user.name}: {err}")
+            raise PortfolioDataError(f"Could not retrieve overall performance for User {user.name}") from err
 
-    def _get_user_portfolio_holdings_view(self, user: User):
-        """Retrieves the detailed portfolio holdings for a user with profit/loss.
-
-        This method uses a single, efficient SQL query to fetch all currently held
-        stocks (quantity > 0) for a given user. It joins holdings with the latest
-        stock prices to calculate the current value, profit in cash, and profit
-        percentage for each holding directly in the database.
-
-        Args:
-            user: The User object for whom to retrieve holdings.
-
-        Returns:
-            A list of dictionaries, where each dictionary represents a stock
-            holding. For example:
-            [
-                {
-                    'stock_code': 'AAPL',
-                    'company_name': 'Apple Inc.',
-                    'current_quantity': 10,
-                    'average_cost': 150.00,
-                    'current_price': 175.00,
-                    'total_profit_in_cash': 250.00,
-                    'total_profit_in_percentage': 16.67
-                }, ...
-            ]
-            Returns an empty list if the user has no holdings or an error occurs.
-        """
+    def get_user_portfolio_holdings(self, user: User) -> list:
+        """Retrieves detailed portfolio holdings in base VND."""
         if not user.id:
-            logging.warning(
-                "Attempted to get portfolio holdings for a user without an ID.")
             return []
-        if not self.db:
-            raise ConnectionError("Database connection is not available.")
 
         sql_query = """
             SELECT
@@ -140,10 +88,10 @@ class PortfolioService:
                 s.company_name,
                 ph.current_quantity,
                 ph.average_cost,
-                (latest_prices.price * 1000) AS current_price,
-                (ph.current_quantity * ((latest_prices.price * 1000) - ph.average_cost)) AS total_profit_in_cash,
+                latest_prices.price AS current_price,
+                (ph.current_quantity * (latest_prices.price - ph.average_cost)) AS total_profit_in_cash,
                 CASE
-                    WHEN ph.average_cost > 0 THEN (((latest_prices.price * 1000) - ph.average_cost) / ph.average_cost) * 100
+                    WHEN ph.average_cost > 0 THEN ((latest_prices.price - ph.average_cost) / ph.average_cost) * 100
                     ELSE 0
                 END AS total_profit_in_percentage
             FROM
@@ -159,6 +107,9 @@ class PortfolioService:
                             price,
                             ROW_NUMBER() OVER(PARTITION BY stock_id ORDER BY date DESC) as rn
                         FROM portfolio_stockprice
+                        WHERE stock_id IN (
+                            SELECT DISTINCT stock_id FROM portfolio_portfolioholding WHERE user_id = %s AND current_quantity > 0
+                        )
                     ) AS ranked_prices
                     WHERE rn = 1
                 ) AS latest_prices ON ph.stock_id = latest_prices.stock_id
@@ -168,320 +119,348 @@ class PortfolioService:
                 s.code;"""
 
         try:
-            cursor = self.db.cursor(dictionary=True)
-            cursor.execute(sql_query, (user.id,))
-            results = cursor.fetchall()
-            # The percentage can be a Decimal type from DB, so we cast it to float
-            for row in results:
-                if 'total_profit_in_percentage' in row:
-                    row['total_profit_in_percentage'] = round(
-                        float(row['total_profit_in_percentage']), 2)
-            return results
+            with self._get_connection() as conn:
+                with conn.cursor(dictionary=True) as cursor:
+                    cursor.execute(sql_query, (user.id, user.id))
+                    results = cursor.fetchall()
+                    for row in results:
+                        if 'total_profit_in_percentage' in row:
+                            row['total_profit_in_percentage'] = round(float(row['total_profit_in_percentage']), 2)
+                        if 'current_price' in row and row['current_price'] is not None:
+                            row['current_price'] = float(row['current_price'])
+                        if 'average_cost' in row and row['average_cost'] is not None:
+                            row['average_cost'] = float(row['average_cost'])
+                        if 'current_quantity' in row and row['current_quantity'] is not None:
+                            row['current_quantity'] = float(row['current_quantity'])
+                        if 'total_profit_in_cash' in row and row['total_profit_in_cash'] is not None:
+                            row['total_profit_in_cash'] = float(row['total_profit_in_cash'])
+                    return results
         except mysql.connector.Error as err:
-            logging.error(
-                f"Database error while getting portfolio holdings for User {user.name}: {err}")
-            raise PortfolioDataError(
-                f"Could not retrieve portfolio holdings for User {user.name}") from err
+            logging.error(f"Database error while getting portfolio holdings for User {user.name}: {err}")
+            raise PortfolioDataError(f"Could not retrieve portfolio holdings for User {user.name}") from err
 
-    def get_overall_performance_data(self):
-        """Aggregates and calculates performance data for all users.
+    def get_overall_performance_data(self) -> list:
+        """Aggregates performance metrics for all users in base VND."""
+        with self._get_connection() as conn:
+            users = User.get_all(conn)
+            performance_data = []
+            for user in users:
+                try:
+                    user_perf = self.get_user_performance_view(user)
+                    if not user_perf:
+                        continue
 
-        This method iterates through all users, fetches their core performance
-        data, combines it with historical profit data, and calculates final
-        metrics like profit in cash and profit percentage.
+                    profit_data = self.get_profit_data(user.id)
+                    if profit_data:
+                        user_perf.update(profit_data[-1])
 
-        Returns:
-            A list of dictionaries, each containing comprehensive performance
-            data for a user. For example:
-            [
-                {
-                    'user_id': 1,
-                    'name': 'John Doe',
-                    'cash_balance': 5000.00,
-                    'total_current_value': 15000.00,
-                    'total_investment': 12000.00,
-                    'total_asset': 20000.00,
-                    'profit_in_cash': 8000.00,
-                    'profit_percent': 66.67
-                }, ...
-            ]
-        """
-        users = User.get_all(self.db)
-        performance_data = []
-        for user in users:
-            try:
-                user_perf = self._get_user_overall_performance_view(user)
-                print(
-                    f"User {user.id} - Preliminary Performance Data: {user_perf}")
-                if not user_perf:
-                    continue  # Skip user if no performance data is found
+                    for key in ['date', 'total_asset_bank', 'total_asset_index']:
+                        user_perf.pop(key, None)
 
-                profit_data = self.get_profit_data(user.id)
-                print(
-                    f"User {user.id} - Profit Data: {profit_data[-1]}")
-                if profit_data:
-                    user_perf.update(profit_data[-1])
+                    user_perf['total_investment'] = float(user_perf.get('total_investment', 0))
+                    user_perf['total_asset'] = float(user_perf.get('total_asset', 0))
+                    user_perf['cash_balance'] = float(user_perf.get('cash_balance', 0))
+                    user_perf['total_current_value'] = float(user_perf.get('total_current_value', 0))
 
-                pop_keys = ['date', 'total_asset_bank', 'total_asset_index']
-                for key in pop_keys:
-                    if key in user_perf:
-                        user_perf.pop(key)
+                    user_perf['profit_in_cash'] = user_perf['total_asset'] - user_perf['total_investment']
 
-                user_perf['total_investment'] = user_perf.get(
-                    'total_investment', 0)
-                user_perf['total_asset'] = user_perf.get('total_asset', 0)
+                    if user_perf['total_investment'] > 0:
+                        user_perf['profit_percent'] = (user_perf['profit_in_cash'] / user_perf['total_investment']) * 100
+                    else:
+                        user_perf['profit_percent'] = 0
 
-                user_perf['profit_in_cash'] = user_perf['total_asset'] - \
-                    user_perf['total_investment']
-
-                if user_perf['total_investment'] > 0:
-                    user_perf['profit_percent'] = (
-                        user_perf['profit_in_cash'] / user_perf['total_investment']) * 100
-                else:
-                    user_perf['profit_percent'] = 0
-
-                performance_data.append(user_perf)
-            except (PortfolioDataError, Exception) as e:
-                logging.error(
-                    f"Failed to process overall performance for user {user.id}: {e}")
-
-        return performance_data
-
-    def get_user_performance_data(self, user_id):
-        """Aggregates and calculates comprehensive performance data for a single user.
-
-        Fetches the user's core performance data, merges it with historical
-        profit information, and computes derived metrics like profit in cash and
-        profit percentage.
-
-        Args:
-            user_id: The ID of the user.
-
-        Returns:
-            A dictionary containing the comprehensive performance data for the user.
-            For example:
-            {
-                'user_id': 1,
-                'name': 'John Doe',
-                'cash_balance': 5000.00,
-                'total_current_value': 15000.00,
-                'total_investment': 12000.00,
-                'total_asset': 20000.00,
-                'profit_in_cash': 8000.00,
-                'profit_percent': 66.67
-            }
-
-        Raises:
-            UserNotFoundException: If no user is found for the given user_id.
-            PortfolioDataError: If data cannot be retrieved or calculated.
-        """
-        user = User.get_by_id(user_id, self.db)
-        if not user:
-            raise UserNotFoundException(f"User with ID {user_id} not found.")
-
-        try:
-            performance_data = self._get_user_overall_performance_view(user)
-            if not performance_data:
-                raise PortfolioDataError(
-                    f"Could not retrieve performance data for user {user_id}")
-
-            profit_data = self.get_profit_data(user_id)
-            if profit_data:
-                performance_data.update(profit_data[-1])
-
-            pop_keys = ['date', 'total_asset_bank', 'total_asset_index']
-            for key in pop_keys:
-                if key in performance_data:
-                    performance_data.pop(key)
-
-            performance_data['total_investment'] = performance_data.get(
-                'total_investment', 0)
-            performance_data['total_asset'] = performance_data.get(
-                'total_asset', 0)
-
-            performance_data['profit_in_cash'] = performance_data['total_asset'] - \
-                performance_data['total_investment']
-
-            if performance_data['total_investment'] > 0:
-                performance_data['profit_percent'] = (
-                    performance_data['profit_in_cash'] / performance_data['total_investment']) * 100
-            else:
-                performance_data['profit_percent'] = 0
-
-            print(performance_data['profit_percent'])
+                    performance_data.append(user_perf)
+                except Exception as e:
+                    logging.error(f"Failed to process overall performance for user {user.id}: {e}")
 
             return performance_data
-        except (PortfolioDataError, Exception) as e:
-            logging.error(
-                f"Failed to get performance data for user {user_id}: {e}")
-            raise  # Re-raise the exception to be handled by the caller
 
-    def get_user_cash_balance(self, user_id):
-        """Retrieves the cash balance for a specific user.
-
-        Args:
-            user_id: The ID of the user.
-
-        Returns:
-            The user's cash balance as a float, or 0 if the user is not found.
-        """
-        # This method could also be updated to use UserNotFoundException if desired
+    def get_profit_data(self, user_id: int) -> list:
+        """Fetches historical profit data in exact VND."""
         sql_query = """
             SELECT
-                cash_balance
-            FROM
-                portfolio_user
-            WHERE
-                id = %s
-        """
-        cursor = self.db.cursor(dictionary=True)
-        cursor.execute(sql_query, (user_id,))
-        data = cursor.fetchone()
-        if data:
-            return data['cash_balance']
-        else:
-            # Or raise UserNotFoundException(f"User with ID {user_id} not found.")
-            return 0
-
-    def get_portfolio_holdings_data(self, user_id):
-        """Public method to retrieve the detailed portfolio holdings for a user.
-
-        This is a wrapper around the private _get_user_portfolio_holdings_view method.
-
-        Args:
-            user_id: The ID of the user.
-
-        Returns:
-            A list of dictionaries representing the user's stock holdings.
-
-        Raises:
-            UserNotFoundException: If no user is found for the given user_id.
-        """
-        user = User.get_by_id(user_id, self.db)
-        if not user:
-            raise UserNotFoundException(f"User with ID {user_id} not found.")
-        return self._get_user_portfolio_holdings_view(user)
-
-    def get_profit_data(self, user_id):
-        """Fetches historical profit data for a user from the 'portfolio_profit' table.
-
-        Args:
-            user_id: The ID of the user.
-
-        Returns:
-            A list of dictionaries, each representing a profit snapshot. For example:
-            [
-                {
-                    'date': '2025-10-26',
-                    'total_investment': 12000.00,
-                    'profit_percent': 66.67,
-                    'total_asset': 20000.00,
-                    'total_asset_bank': 18000.00,
-                    'total_asset_index': 19000.00
-                }, ...
-            ]
-        """
-        sql_query = """
-            SELECT
-                date, (total_investment * 1000) as total_investment, profit_percent, (total_asset * 1000) as total_asset, (total_asset_bank * 1000) as total_asset_bank, (total_asset_index * 1000) as total_asset_index
+                date, total_investment, profit_percent, total_asset, total_asset_bank, total_asset_index
             FROM
                 portfolio_profit
             WHERE
-                user_id = %s;
+                user_id = %s
+            ORDER BY date ASC;
         """
-        cursor = self.db.cursor(dictionary=True)
-        cursor.execute(sql_query, (user_id,))
-        datas = cursor.fetchall()
-        for i in range(len(datas)):
-            datas[i]['date'] = datas[i]['date'].strftime('%Y-%m-%d')
+        with self._get_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute(sql_query, (user_id,))
+                datas = cursor.fetchall()
+                for i in range(len(datas)):
+                    datas[i]['date'] = datas[i]['date'].strftime('%Y-%m-%d')
+                    for col in ['total_investment', 'total_asset', 'total_asset_bank', 'total_asset_index']:
+                        datas[i][col] = float(datas[i][col]) if datas[i][col] is not None else 0.0
+                    datas[i]['profit_percent'] = float(datas[i]['profit_percent']) if datas[i]['profit_percent'] is not None else 0.0
 
-        return datas
+                return datas
 
-    def get_injection_data(self, user_id):
-        """Fetches all capital injections and withdrawals for a user.
-
-        This method queries both the capital injection and withdrawal tables,
-        combines the results, and sorts them by date in descending order.
-        Withdrawals are represented as negative amounts.
-
-        Args:
-            user_id: The ID of the user.
-
-        Returns:
-            A sorted list of dictionaries, each representing a capital event.
-            For example:
-            [
-                {'date': '2025-10-20', 'amount': 10000.00},
-                {'date': '2025-09-15', 'amount': -2000.00}
-            ]
+    def get_user_cash_balance(self, user_id: int) -> float:
+        """Calculates cash balance for a user from posting entries."""
+        sql_query = """
+            SELECT COALESCE(SUM(p.debit - p.credit), 0) as cash_balance
+            FROM portfolio_postingorm p
+            JOIN portfolio_journalentryorm je ON p.journal_entry_id = je.id
+            WHERE je.user_id = %s AND p.account_name = 'Assets:Cash';
         """
+        with self._get_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute(sql_query, (user_id,))
+                data = cursor.fetchone()
+                return float(data['cash_balance']) if data and data['cash_balance'] is not None else 0.0
+
+    def get_capital_flow_data(self, user_id: int) -> list:
+        """Fetches capital injections and withdrawals combined via SQL UNION ALL."""
+        sql_query = """
+            SELECT injection_date as date, amount
+            FROM portfolio_capitalinjection
+            WHERE user_id = %s
+            UNION ALL
+            SELECT withdraw_date as date, -amount as amount
+            FROM portfolio_capitalwithdrawal
+            WHERE user_id = %s
+            ORDER BY date DESC;
+        """
+        with self._get_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute(sql_query, (user_id, user_id))
+                datas = cursor.fetchall()
+                for i in range(len(datas)):
+                    datas[i]['date'] = datas[i]['date'].strftime('%Y-%m-%d')
+                    datas[i]['amount'] = float(datas[i]['amount'])
+                return datas
+
+    def get_transaction_data(self, user_id: int) -> list:
+        """Fetches transaction history for a user."""
+        sql_query = """
+            SELECT transaction_date, stock_id as stock_code, quantity, price_per_share, transaction_type
+            FROM portfolio_transaction
+            WHERE user_id = %s
+            ORDER BY transaction_date DESC;
+        """
+        with self._get_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute(sql_query, (user_id,))
+                datas = cursor.fetchall()
+                for i in range(len(datas)):
+                    datas[i]['transaction_date'] = datas[i]['transaction_date'].strftime('%Y-%m-%d')
+                    datas[i]['quantity'] = float(datas[i]['quantity'])
+                    datas[i]['price_per_share'] = float(datas[i]['price_per_share'])
+                return datas
+
+    def get_user_profile_payload(self, user_id: int, dividend_service, ledger_service) -> dict:
+        """Consolidates complete user profile payload to render user_profile.html."""
+        with self._get_connection() as conn:
+            user = User.get_by_id(user_id, conn)
+            if not user:
+                raise UserNotFoundException(f"User with ID {user_id} not found.")
+
+            perf_data = self.get_user_performance_view(user)
+            if not perf_data:
+                raise PortfolioDataError(f"Could not retrieve performance data for user {user_id}")
+
+            profit_data = self.get_profit_data(user_id)
+            if profit_data:
+                perf_data.update(profit_data[-1])
+
+            for key in ['date', 'total_asset_bank', 'total_asset_index']:
+                perf_data.pop(key, None)
+
+            perf_data['total_investment'] = float(perf_data.get('total_investment', 0))
+            perf_data['total_asset'] = float(perf_data.get('total_asset', 0))
+            perf_data['cash_balance'] = float(perf_data.get('cash_balance', 0))
+            perf_data['profit_in_cash'] = perf_data['total_asset'] - perf_data['total_investment']
+            if perf_data['total_investment'] > 0:
+                perf_data['profit_percent'] = (perf_data['profit_in_cash'] / perf_data['total_investment']) * 100
+            else:
+                perf_data['profit_percent'] = 0
+
+            portfolio_data = self.get_user_portfolio_holdings(user)
+            cash_balance = self.get_user_cash_balance(user_id)
+            transaction_data = self.get_transaction_data(user_id)
+            injection_data = self.get_capital_flow_data(user_id)
+            dividend_data = dividend_service.get_user_dividends(user_id)
+            user_total_tax = ledger_service.get_total_tax(user_id=user_id)
+
+            # Chart values
+            stock_values = {
+                holding['stock_code']: float(holding['current_price']) * float(holding['current_quantity'])
+                for holding in portfolio_data
+            }
+            stock_values['Cash'] = float(cash_balance)
+            chart_labels = list(stock_values.keys())
+            chart_data = list(stock_values.values())
+
+            # Profit chart values
+            profit_chart_labels = [data['date'] for data in profit_data]
+            profit_chart_total_asset = [data['total_asset'] for data in profit_data]
+            profit_chart_total_asset_bank = [data['total_asset_bank'] for data in profit_data]
+            profit_chart_total_asset_index = [data['total_asset_index'] for data in profit_data]
+            profit_chart_total_investment = [data['total_investment'] for data in profit_data]
+            profit_chart_profit_percent = profit_data[-1]['profit_percent'] if profit_data else 0.0
+
+            return {
+                'user': user,
+                'performance_data': perf_data,
+                'portfolio_data': portfolio_data,
+                'cash_balance': cash_balance,
+                'profit_data': profit_data,
+                'transaction_data': transaction_data,
+                'injection_data': injection_data,
+                'dividend_data': dividend_data,
+                'user_total_tax': user_total_tax,
+                'chart_labels': chart_labels,
+                'chart_data': chart_data,
+                'profit_chart_labels': profit_chart_labels,
+                'profit_chart_total_asset': profit_chart_total_asset,
+                'profit_chart_total_asset_bank': profit_chart_total_asset_bank,
+                'profit_chart_total_asset_index': profit_chart_total_asset_index,
+                'profit_chart_total_investment': profit_chart_total_investment,
+                'profit_chart_profit_percent': profit_chart_profit_percent,
+            }
+
+
+class DividendService:
+    """Deep module handling corporate action and dividend schedule fetching."""
+
+    def __init__(self, db_or_pool: Union[mysql.connector.MySQLConnection, MySQLConnectionPool]):
+        self.db_or_pool = db_or_pool
+
+    @contextmanager
+    def _get_connection(self) -> Generator[mysql.connector.MySQLConnection, None, None]:
+        if isinstance(self.db_or_pool, MySQLConnectionPool):
+            conn = self.db_or_pool.get_connection()
+            try:
+                yield conn
+            finally:
+                conn.close()
+        else:
+            yield self.db_or_pool
+
+    def get_user_dividends(self, user_id: int) -> list:
+        """Fetches dividend events strictly for stocks in user's holdings or transactions."""
         sql_query = """
             SELECT
-                injection_date as date, amount
-            FROM
-                portfolio_capitalinjection
-            WHERE
-                user_id = %s
-            Order by injection_date DESC;
+                d.id, d.stock_id, d.ex_date, d.record_date, d.payment_date,
+                d.dividend_type, d.cash_amount_per_share, d.stock_ratio_numerator, d.stock_ratio_denominator
+            FROM portfolio_dividend d
+            WHERE d.stock_id IN (
+                SELECT stock_id FROM portfolio_portfolioholding WHERE user_id = %s
+            ) OR d.stock_id IN (
+                SELECT stock_id FROM portfolio_transaction WHERE user_id = %s
+            )
+            ORDER BY d.ex_date DESC;
         """
-        cursor = self.db.cursor(dictionary=True)
-        cursor.execute(sql_query, (user_id,))
-        datas = cursor.fetchall()
-        for i in range(len(datas)):
-            datas[i]['date'] = datas[i]['date'].strftime('%Y-%m-%d')
+        with self._get_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute(sql_query, (user_id, user_id))
+                rows = cursor.fetchall()
+                for r in rows:
+                    for d_col in ['ex_date', 'record_date', 'payment_date']:
+                        if r[d_col]:
+                            r[d_col] = r[d_col].strftime('%Y-%m-%d')
+                    if r['cash_amount_per_share']:
+                        r['cash_amount_per_share'] = float(r['cash_amount_per_share'])
+                return rows
 
+
+class LedgerService:
+    """Deep module handling double-entry journal entry exploration for expert view."""
+
+    def __init__(self, db_or_pool: Union[mysql.connector.MySQLConnection, MySQLConnectionPool]):
+        self.db_or_pool = db_or_pool
+
+    @contextmanager
+    def _get_connection(self) -> Generator[mysql.connector.MySQLConnection, None, None]:
+        if isinstance(self.db_or_pool, MySQLConnectionPool):
+            conn = self.db_or_pool.get_connection()
+            try:
+                yield conn
+            finally:
+                conn.close()
+        else:
+            yield self.db_or_pool
+
+    def get_user_journal_entries(self, user_id: int, limit: Optional[int] = None) -> list:
+        """Fetches double-entry journal entries and posting legs for expert modal."""
         sql_query = """
             SELECT
-                withdraw_date as date, - amount as amount
-            FROM
-                portfolio_capitalwithdrawal
-            WHERE
-                user_id = %s
-            Order by withdraw_date DESC;
+                je.id as entry_id, je.entry_date, je.description,
+                p.id as posting_id, p.account_name, p.account_type, p.debit, p.credit, p.stock_id, p.quantity
+            FROM portfolio_journalentryorm je
+            JOIN portfolio_postingorm p ON je.id = p.journal_entry_id
+            WHERE je.user_id = %s
+            ORDER BY je.entry_date DESC, je.id DESC, p.id ASC
         """
-        cursor.execute(sql_query, (user_id,))
-        withdrawal_datas = cursor.fetchall()
-        for i in range(len(withdrawal_datas)):
-            withdrawal_datas[i]['date'] = withdrawal_datas[i]['date'].strftime(
-                '%Y-%m-%d')
-        datas += withdrawal_datas
-        datas.sort(key=lambda x: x['date'], reverse=True)
+        params = [user_id]
+        if limit is not None:
+            sql_query += " LIMIT %s"
+            params.append(limit * 5)
 
-        return datas
+        with self._get_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute(sql_query, tuple(params))
+                rows = cursor.fetchall()
 
-    def get_transaction_data(self, user_id):
-        """Fetches all stock transactions (buy/sell) for a specific user.
+                entries_dict = {}
+                for r in rows:
+                    e_id = r['entry_id']
+                    if e_id not in entries_dict:
+                        desc = r['description'] or ''
+                        cat = "Khác"
+                        if "BUY" in desc:
+                            cat = "Mua Cổ Phiếu"
+                        elif "SELL" in desc:
+                            cat = "Bán Cổ Phiếu"
+                        elif "Injection" in desc:
+                            cat = "Góp Vốn"
+                        elif "Withdrawal" in desc:
+                            cat = "Rút Vốn"
+                        elif "dividend" in desc.lower():
+                            cat = "Cổ Tức"
 
-        Args:
-            user_id: The ID of the user.
+                        entries_dict[e_id] = {
+                            'entry_id': e_id,
+                            'entry_date': r['entry_date'].strftime('%Y-%m-%d') if r['entry_date'] else '',
+                            'description': desc,
+                            'category': cat,
+                            'postings': []
+                        }
+                    entries_dict[e_id]['postings'].append({
+                        'posting_id': r['posting_id'],
+                        'account_name': r['account_name'],
+                        'account_type': r['account_type'],
+                        'debit': float(r['debit']),
+                        'credit': float(r['credit']),
+                        'stock_id': r['stock_id'],
+                        'quantity': float(r['quantity']) if r['quantity'] else None
+                    })
 
-        Returns:
-            A list of dictionaries, each representing a stock transaction.
-            For example:
-            [
-                {
-                    'transaction_date': '2025-10-25',
-                    'stock_code': 'AAPL',
-                    'quantity': 5,
-                    'price_per_share': 170.00,
-                    'transaction_type': 'buy'
-                }, ...
-            ]
-        """
-        sql_query = """
-            SELECT
-                transaction_date, stock_id as stock_code, quantity, price_per_share, transaction_type
-            FROM
-                portfolio_transaction
-            WHERE
-                user_id = %s
-            Order by transaction_date DESC;
-        """
-        cursor = self.db.cursor(dictionary=True)
-        cursor.execute(sql_query, (user_id,))
-        datas = cursor.fetchall()
-        for i in range(len(datas)):
-            datas[i]['transaction_date'] = datas[i]['transaction_date'].strftime(
-                '%Y-%m-%d')
+                return list(entries_dict.values())
 
-        return datas
+    def get_total_tax(self, user_id: Optional[int] = None) -> float:
+        """Calculates total tax paid (transaction tax + dividend tax) for a user or overall system."""
+        if user_id:
+            sql_query = """
+                SELECT COALESCE(SUM(p.debit), 0) as total_tax
+                FROM portfolio_postingorm p
+                JOIN portfolio_journalentryorm je ON p.journal_entry_id = je.id
+                WHERE je.user_id = %s AND p.account_name IN ('Expenses:TransactionTax', 'Expenses:DividendTax');
+            """
+            params = (user_id,)
+        else:
+            sql_query = """
+                SELECT COALESCE(SUM(p.debit), 0) as total_tax
+                FROM portfolio_postingorm p
+                WHERE p.account_name IN ('Expenses:TransactionTax', 'Expenses:DividendTax');
+            """
+            params = ()
+
+        with self._get_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute(sql_query, params)
+                res = cursor.fetchone()
+                return float(res['total_tax']) if res and res['total_tax'] else 0.0

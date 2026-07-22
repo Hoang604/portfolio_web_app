@@ -1,11 +1,16 @@
 import logging
 import sys
-from flask import Flask, render_template, abort, request
-from utils.database import connect_db
-from Service import PortfolioService, UserNotFoundException, PortfolioDataError
+from flask import Flask, render_template, abort, request, jsonify
+from utils.database import get_db_pool
+from Service import (
+    PerformanceService,
+    DividendService,
+    LedgerService,
+    UserNotFoundException,
+    PortfolioDataError
+)
 
 # --- Logging Configuration ---
-# Log to standard output, which is captured by most hosting providers.
 logging.basicConfig(stream=sys.stdout,
                     level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -14,14 +19,13 @@ app = Flask(__name__)
 
 # --- Database and Service Initialization ---
 try:
-    db = connect_db()
-    service = PortfolioService(db)
-    logging.info(
-        "Database connected and PortfolioService initialized successfully.")
+    db_pool = get_db_pool()
+    performance_service = PerformanceService(db_pool)
+    dividend_service = DividendService(db_pool)
+    ledger_service = LedgerService(db_pool)
+    logging.info("Database pool connected and Modular Portfolio Services initialized successfully.")
 except Exception as e:
-    logging.critical(
-        f"Application startup failed: Could not connect to database. Error: {e}")
-    # If the database isn't available on startup, the app can't run.
+    logging.critical(f"Application startup failed: Could not connect to database pool. Error: {e}")
     sys.exit("Exiting: Database connection failed.")
 
 
@@ -35,12 +39,25 @@ def add_header(response):
 
 @app.route('/', methods=['GET'])
 def home():
-    """Renders the home page displaying overall performance for all users."""
+    """Renders the home page displaying overall performance for all users in base VND."""
     try:
-        users_performance = service.get_overall_performance_data()
+        users_performance = performance_service.get_overall_performance_data()
+        
+        # Aggregate hero statistics across all investors
+        total_system_wealth = sum(u.get('total_asset', 0) for u in users_performance)
+        total_system_investment = sum(u.get('total_investment', 0) for u in users_performance)
+        total_system_profit = total_system_wealth - total_system_investment
+        total_system_profit_pct = (total_system_profit / total_system_investment * 100) if total_system_investment > 0 else 0.0
+        total_system_tax = ledger_service.get_total_tax()
+
         return render_template(
             'home.html',
-            users_performance=users_performance
+            users_performance=users_performance,
+            total_system_wealth=total_system_wealth,
+            total_system_investment=total_system_investment,
+            total_system_profit=total_system_profit,
+            total_system_profit_pct=total_system_profit_pct,
+            total_system_tax=total_system_tax
         )
     except Exception as e:
         logging.error(f"An error occurred on the home page: {e}")
@@ -49,88 +66,59 @@ def home():
 
 @app.route('/user/<int:user_id>', methods=['GET'])
 def portfolio(user_id):
-    """Renders the portfolio page for a specific user."""
+    """Renders the 2-tier user profile page for a specific user in base VND."""
     try:
-        # Fetch all necessary data from the service
-        user = service.get_user_by_id(user_id=user_id)
-        performance_data = service.get_user_performance_data(user_id=user_id)
-        portfolio_data = service.get_portfolio_holdings_data(user_id=user_id)
-        cash_balance = float(service.get_user_cash_balance(user_id=user_id))
-        profit_data = service.get_profit_data(user_id)
-        transaction_data = service.get_transaction_data(user_id)
-        injection_data = service.get_injection_data(user_id)
-
-        # --- Chart and Data Processing ---
-
-        performance_data['total_investment'] = performance_data.get(
-            'total_investment', 0) / 1000
-        performance_data['total_asset'] = performance_data.get(
-            'total_asset', 0) / 1000
-
-        # Calculate stock values for the pie chart
-        stock_values = {
-            holding['stock_code']: holding['current_price'] *
-            holding['current_quantity']
-            for holding in portfolio_data
-        }
-        stock_values['Cash'] = cash_balance
-
-        chart_labels = list(stock_values.keys())
-        chart_data = list(stock_values.values())
-
-        # Process profit data for the profit chart
-        profit_chart_labels = [data['date'] for data in profit_data]
-        profit_chart_total_asset = [data['total_asset']
-                                    for data in profit_data]
-        profit_chart_total_asset_bank = [
-            data['total_asset_bank'] for data in profit_data]
-        profit_chart_total_asset_index = [
-            data['total_asset_index'] for data in profit_data]
-        profit_chart_total_investment = [
-            data['total_investment'] for data in profit_data]
-        profit_chart_profit_percent = profit_data[-1]['profit_percent'] if profit_data else 0
-
-        return render_template('user_profile.html',
-                               performance_data=performance_data,
-                               transaction_data=transaction_data,
-                               injection_data=injection_data,
-                               user=user,
-                               portfolio_data=portfolio_data,
-                               chart_labels=chart_labels,
-                               chart_data=chart_data,
-                               profit_chart_labels=profit_chart_labels,
-                               profit_chart_total_asset=profit_chart_total_asset,
-                               profit_chart_total_asset_bank=profit_chart_total_asset_bank,
-                               profit_chart_total_asset_index=profit_chart_total_asset_index,
-                               profit_chart_total_investment=profit_chart_total_investment,
-                               profit_chart_profit_percent=profit_chart_profit_percent)
+        payload = performance_service.get_user_profile_payload(
+            user_id=user_id,
+            dividend_service=dividend_service,
+            ledger_service=ledger_service
+        )
+        return render_template('user_profile.html', **payload)
 
     except UserNotFoundException as e:
         logging.warning(f"Data not found for user_id {user_id}: {e}")
         abort(404, description=str(e))
     except PortfolioDataError as e:
-        logging.error(
-            f"A portfolio data error occurred for user_id {user_id}: {e}")
+        logging.error(f"A portfolio data error occurred for user_id {user_id}: {e}")
         abort(500, description="An internal error occurred while fetching portfolio data.")
     except Exception as e:
-        logging.critical(
-            f"An unexpected error occurred for user_id {user_id}: {e}", exc_info=True)
+        logging.critical(f"An unexpected error occurred for user_id {user_id}: {e}", exc_info=True)
         abort(500, description="An unexpected internal error occurred.")
 
 
-# Custom Jinja2 filter
+@app.route('/api/v1/user/<int:user_id>/ledger', methods=['GET'])
+def get_user_ledger_api(user_id: int):
+    """REST API endpoint returning JSON double-entry journal entries for expert view."""
+    try:
+        limit = request.args.get('limit', default=None, type=int)
+        entries = ledger_service.get_user_journal_entries(user_id=user_id, limit=limit)
+        return jsonify({"status": "success", "user_id": user_id, "journal_entries": entries})
+    except Exception as e:
+        logging.error(f"Failed to fetch ledger API for user_id {user_id}: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# Custom Jinja2 filters
 @app.template_filter('thousands')
 def thousands_filter(value):
-    """Formats a number with thousand separators and no decimal places."""
+    """Formats a number with thousand separators (comma formatted)."""
     try:
-        # Cast to float and format with a comma for thousands separation, and no decimal places.
         return "{:,.0f}".format(float(value))
     except (ValueError, TypeError):
-        # Return original value if conversion or formatting fails
+        return value
+
+
+@app.template_filter('compact_vnd')
+def compact_vnd_filter(value):
+    """Formats large monetary numbers concisely (e.g., 42.95M đ or 42,956,000 đ)."""
+    try:
+        val = float(value)
+        if abs(val) >= 1_000_000:
+            return f"{val / 1_000_000:,.2f} Tr"
+        return f"{val:,.0f} đ"
+    except (ValueError, TypeError):
         return value
 
 
 if __name__ == '__main__':
-    # For development, you can set debug=True
-    # app.run(debug=True)
-    app.run()
+    app.run(port=5000)

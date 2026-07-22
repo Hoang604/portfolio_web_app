@@ -3,73 +3,145 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Overall Performance Dashboard</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
-  <!-- Add FontAwesome for detail icon -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <title>Overall Portfolio Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}?v=3.0">
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-  <h1 class="desktop-only">Overall Performance Dashboard</h1>
 
-  <!-- Desktop Container -->
+  <div class="dashboard-header">
+    <div class="header-title">
+      <i data-lucide="layout-dashboard" class="icon-brand"></i>
+      <h1>Overall Performance Dashboard</h1>
+    </div>
+  </div>
+
+  <!-- Hero Summary Cards -->
+  <div class="hero-stats-grid">
+    <div class="stat-card">
+      <div class="stat-header">
+        <span class="stat-label">Tổng Tài Sản Hệ Thống</span>
+        <i data-lucide="wallet" class="stat-icon icon-blue"></i>
+      </div>
+      <div class="stat-value">{{ total_system_wealth | thousands }} đ</div>
+      <div class="stat-subtext">{{ total_system_wealth | compact_vnd }}</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-header">
+        <span class="stat-label">Tổng Vốn Góp Ban Đầu</span>
+        <i data-lucide="coins" class="stat-icon icon-yellow"></i>
+      </div>
+      <div class="stat-value">{{ total_system_investment | thousands }} đ</div>
+      <div class="stat-subtext">{{ total_system_investment | compact_vnd }}</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-header">
+        <span class="stat-label">Tổng Lợi Nhuận Ròng</span>
+        {% if total_system_profit >= 0 %}
+          <i data-lucide="trending-up" class="stat-icon icon-green"></i>
+        {% else %}
+          <i data-lucide="trending-down" class="stat-icon icon-red"></i>
+        {% endif %}
+      </div>
+      <div class="stat-value {% if total_system_profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+        {% if total_system_profit >= 0 %}+{% endif %}{{ total_system_profit | thousands }} đ
+      </div>
+      <div class="stat-subtext {% if total_system_profit_pct >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+        {% if total_system_profit_pct >= 0 %}+{% endif %}{{ "{:.2f}%".format(total_system_profit_pct) }} ROR
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-header">
+        <span class="stat-label">Tổng Thuế Đã Nộp</span>
+        <i data-lucide="receipt" class="stat-icon icon-orange"></i>
+      </div>
+      <div class="stat-value" style="color: #f97316;">{{ total_system_tax | thousands }} đ</div>
+      <div class="stat-subtext">{{ total_system_tax | compact_vnd }}</div>
+    </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Investors Section -->
+  <div class="section-title">
+    <i data-lucide="user-check"></i>
+    <h2>Danh Sách Nhà Đầu Tư</h2>
+  </div>
+
+  <!-- Desktop Table Container -->
   <div class="perf-view-frame desktop-only">
-      <!-- Desktop Header -->
-      <div class="table-header table-row" style="color: rgb(165, 184, 201);">
-          <span>User (ID)</span>
-          <span>Số dư tiền mặt (VND)</span>
-          <span>Tổng vốn đầu tư (VND)</span>
-          <span>Giá trị thị trường (VND)</span>
-          <span>Tổng tài sản (VND)</span>
-          <span>Lợi nhuận (VND)</span>
-          <span>Lợi nhuận (%)</span>
+      <div class="table-header table-row">
+          <span>Nhà Đầu Tư</span>
+          <span style="text-align: right;">Tiền Mặt (VNĐ)</span>
+          <span style="text-align: right;">Vốn Góp (VNĐ)</span>
+          <span style="text-align: right;">Cổ Phiếu (VNĐ)</span>
+          <span style="text-align: right;">Tổng Tài Sản (VNĐ)</span>
+          <span style="text-align: right;">Lợi Nhuận (VNĐ)</span>
+          <span style="text-align: right;">ROR (%)</span>
+          <span style="text-align: center;">Thao Tác</span>
       </div>
 
       {% for user_perf in users_performance %}
       <div class="table-row" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
-          <span>{{ user_perf.name }} ({{ user_perf.user_id }})</span>
-          <span>{{ user_perf.cash_balance | thousands }}</span>
-          <span>{{ user_perf.total_investment | thousands }}</span>
-          <span>{{ user_perf.total_current_value | thousands }}</span>
-          <span>{{ user_perf.total_asset | thousands }}</span>
-          <span>{{ user_perf.profit_in_cash | thousands }}</span>
-          <span {% if user_perf.profit_percent > 0 %}class="profit-positive"{% elif user_perf.profit_percent < 0 %}class="profit-negative"{% endif %}>
+          <span class="user-cell">
+            <i data-lucide="user" class="icon-small"></i>
+            <span class="user-name-text">{{ user_perf.name }}</span>
+          </span>
+          <span style="text-align: right;">{{ user_perf.cash_balance | thousands }}</span>
+          <span style="text-align: right;">{{ user_perf.total_investment | thousands }}</span>
+          <span style="text-align: right;">{{ user_perf.total_current_value | thousands }}</span>
+          <span style="text-align: right;" class="highlight-val">{{ user_perf.total_asset | thousands }}</span>
+          <span style="text-align: right;" class="{% if user_perf.profit_in_cash >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+            {% if user_perf.profit_in_cash >= 0 %}+{% endif %}{{ user_perf.profit_in_cash | thousands }}
+          </span>
+          <span style="text-align: right;" class="{% if user_perf.profit_percent >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
               {% if user_perf.total_investment and user_perf.total_investment != 0 %}
-                  {{ "{:.2f}%".format(user_perf.profit_percent) }}
+                  {% if user_perf.profit_percent >= 0 %}+{% endif %}{{ "{:.2f}%".format(user_perf.profit_percent) }}
               {% else %}
                   N/A
               {% endif %}
+          </span>
+          <span style="text-align: center;" class="action-cell">
+            <a href="/user/{{ user_perf.user_id }}" class="btn-view-profile">
+              Chi tiết <i data-lucide="chevron-right" class="icon-small"></i>
+            </a>
           </span>
       </div>
       {% endfor %}
   </div>
 
-  <!-- Mobile Container -->
-   <h1 class="mobile-only">Overall Performance Dashboard</h1>
+  <!-- Mobile View Cards -->
   <div class="perf-view-frame mobile-only"> 
-      <!-- Mobile Header -->
-      <div class="mobile-table-header mobile-table-row" style="color: rgb(165, 184, 201);">
-          <span>User</span>
-          <span>Tổng tài sản</span>
-          <span>Lợi nhuận (%)</span>
-          <span>Chi tiết</span>
+      <div class="mobile-table-header mobile-table-row">
+          <span>Nhà Đầu Tư</span>
+          <span style="text-align: right;">Tổng Tài Sản</span>
+          <span style="text-align: right;">Lợi Nhuận (%)</span>
+          <span style="text-align: center;">Chi Tiết</span>
       </div>
 
       {% for user_perf in users_performance %}
-      <div class="mobile-table-row">
-          <span>{{ user_perf.name }}</span>
-          <span>{{ user_perf.total_asset | thousands }}</span>
-          <span {% if user_perf.profit_percent > 0 %}class="profit-positive"{% elif user_perf.profit_percent < 0 %}class="profit-negative"{% endif %}>
+      <div class="mobile-table-row" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
+          <span class="user-cell">{{ user_perf.name }}</span>
+          <span style="text-align: right;" class="highlight-val">{{ user_perf.total_asset | compact_vnd }}</span>
+          <span style="text-align: right;" class="{% if user_perf.profit_percent >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
               {% if user_perf.total_investment and user_perf.total_investment != 0 %}
-                  {{ "{:.2f}%".format(user_perf.profit_percent) }}
+                  {% if user_perf.profit_percent >= 0 %}+{% endif %}{{ "{:.2f}%".format(user_perf.profit_percent) }}
               {% else %}
                   N/A
               {% endif %}
           </span>
-          <span class="detail-link" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
-              <i class="fas fa-chevron-right"></i>
+          <span style="text-align: center;" class="detail-link">
+              <i data-lucide="chevron-right"></i>
           </span>
       </div>
       {% endfor %}
   </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
 </body>
 </html>

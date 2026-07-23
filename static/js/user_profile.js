@@ -135,156 +135,252 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // Profit Line Chart Initialization
 document.addEventListener("DOMContentLoaded", function () {
-  const chartCanvas = document.getElementById("profitChart");
-  if (!chartCanvas) return;
+  const container = document.getElementById("profitChartContainer");
+  if (!container) return;
 
-  const ctx = chartCanvas.getContext("2d");
-  const myChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: profit_chart_labels,
-      datasets: [
-        {
-          label: "Tài sản danh mục của bạn",
-          data: profit_chart_total_asset,
-          borderColor: "rgb(40, 167, 69)",
-          backgroundColor: "rgba(40, 167, 69, 0.1)",
-          fill: false,
-          hidden: false,
-          pointRadius: 0,
-          borderWidth: 2,
-        },
-        {
-          label: "Lợi nhuận gửi ngân hàng (5%/năm)",
-          data: profit_chart_total_asset_bank,
-          borderColor: "rgb(255, 193, 7)",
-          fill: false,
-          hidden: true,
-          pointRadius: 0,
-          borderWidth: 2,
-        },
-        {
-          label: "Chỉ số VN-INDEX",
-          data: profit_chart_total_asset_index,
-          borderColor: "rgb(153, 102, 255)",
-          fill: false,
-          hidden: true,
-          pointRadius: 0,
-          borderWidth: 2,
-        },
-        {
-          label: "Tổng vốn đã góp",
-          data: profit_chart_total_investment,
-          borderColor: "rgb(52, 152, 219)",
-          fill: false,
-          hidden: false,
-          pointRadius: 0,
-          borderWidth: 2,
-        },
-      ],
+  const chart = LightweightCharts.createChart(container, {
+    layout: {
+      textColor: "#a5b8c9",
+      background: { type: "solid", color: "transparent" },
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        zoom: {
-          zoom: {
-            wheel: { enabled: true },
-            pinch: { enabled: true },
-            mode: "x",
-          },
-          pan: { enabled: true, mode: "x" },
-        },
-        legend: {
-          display: true,
-          position: "top",
-          labels: { color: "#a5b8c9" },
-        },
-        tooltip: {
-          enabled: true,
-          mode: "index",
-          intersect: false,
-          callbacks: {
-            label: function (context) {
-              let label = context.dataset.label || "";
-              if (label) label += ": ";
-              if (context.parsed.y !== null) {
-                label +=
-                  Number(context.parsed.y).toLocaleString("en-US") + " VNĐ";
-              }
-              return label;
-            },
-          },
-        },
-        title: {
-          display: true,
-          text:
-            "Biến động tài sản theo thời gian (IRR ước tính: " +
-            (profit_percentage
-              ? (profit_percentage >= 0 ? "+" : "") +
-                profit_percentage.toFixed(2)
-              : "0.00") +
-            "%/năm)",
-          color: "#3498db",
-          font: { size: 15 },
-        },
+    localization: {
+      priceFormatter: function (price) {
+        if (Math.abs(price) >= 1000000) {
+          return (price / 1000000).toFixed(1) + " Tr";
+        }
+        return price.toLocaleString("en-US");
       },
-      scales: {
-        x: {
-          display: true,
-          title: { display: true, text: "Thời gian (Ngày)", color: "#a5b8c9" },
-          grid: { color: "rgba(255,255,255,0.05)" },
-          ticks: { color: "#a5b8c9", maxTicksLimit: 8 },
-        },
-        y: {
-          display: true,
-          title: { display: true, text: "Giá trị (VNĐ)", color: "#a5b8c9" },
-          grid: { color: "rgba(255,255,255,0.05)" },
-          ticks: {
-            color: "#a5b8c9",
-            callback: function (val) {
-              if (Math.abs(val) >= 1000000) {
-                return (val / 1000000).toFixed(1) + " Tr";
-              }
-              return val.toLocaleString("en-US");
-            },
-          },
-        },
-      },
+    },
+    rightPriceScale: {
+      visible: true,
+      borderColor: "rgba(255,255,255,0.1)",
+    },
+    leftPriceScale: {
+      visible: false,
+    },
+    grid: {
+      vertLines: { color: "rgba(255,255,255,0.05)" },
+      horzLines: { color: "rgba(255,255,255,0.05)" },
+    },
+    timeScale: {
+      borderColor: "rgba(255,255,255,0.1)",
+      timeVisible: true,
+    },
+    crosshair: {
+      mode: LightweightCharts.CrosshairMode.Normal,
     },
   });
 
-  document.getElementById("resetZoom").addEventListener("click", function () {
-    myChart.resetZoom();
-  });
+  const overlayCanvas = document.getElementById("profitChartOverlay");
+  const overlayCtx = overlayCanvas ? overlayCanvas.getContext("2d") : null;
 
-  const toggleBank = document.getElementById("toggleBank");
-  const toggleIndex = document.getElementById("toggleIndex");
+  function syncOverlaySize() {
+    if (!overlayCanvas) return;
+    const rect = container.getBoundingClientRect();
+    overlayCanvas.width = rect.width;
+    overlayCanvas.height = rect.height;
+    renderOverlay();
+  }
 
-  if (toggleBank) {
-    toggleBank.addEventListener("click", function () {
-      const bankDs = myChart.data.datasets.find((ds) =>
-        ds.label.includes("ngân hàng"),
-      );
-      if (bankDs) {
-        bankDs.hidden = !bankDs.hidden;
-        this.classList.toggle("selected", !bankDs.hidden);
-        myChart.update();
+  // Handle Resize
+  new ResizeObserver((entries) => {
+    if (entries.length === 0 || entries[0].target !== container) {
+      return;
+    }
+    const newRect = entries[0].contentRect;
+    chart.applyOptions({ height: newRect.height, width: newRect.width });
+    syncOverlaySize();
+  }).observe(container);
+
+  // Map Data
+  const mapData = (labels, values) => {
+    return labels.map((dateStr, i) => {
+      // Convert "DD/MM/YYYY" to "YYYY-MM-DD"
+      const parts = dateStr.split("/");
+      let yyyyMmDd = dateStr;
+      if (parts.length === 3) {
+         yyyyMmDd = `${parts[2]}-${parts[1]}-${parts[0]}`;
       }
+      return { time: yyyyMmDd, value: values[i] };
+    });
+  };
+
+  const assetData = mapData(profit_chart_labels, profit_chart_total_asset);
+  const investmentData = mapData(
+    profit_chart_labels,
+    profit_chart_total_investment,
+  );
+  const bankData = mapData(profit_chart_labels, profit_chart_total_asset_bank);
+  const indexData = mapData(
+    profit_chart_labels,
+    profit_chart_total_asset_index,
+  );
+
+  // Add Series - Line for Asset and the rest
+  const assetSeries = chart.addSeries(LightweightCharts.LineSeries, {
+    color: "rgb(40, 167, 69)",
+    lineWidth: 2,
+    lineType: LightweightCharts.LineType.Curved,
+    title: "Tài sản",
+  });
+  assetSeries.setData(assetData);
+
+  const investmentSeries = chart.addSeries(LightweightCharts.LineSeries, {
+    color: "rgb(52, 152, 219)",
+    lineWidth: 2,
+    lineType: LightweightCharts.LineType.WithSteps,
+    title: "Vốn",
+  });
+  investmentSeries.setData(investmentData);
+
+  const bankSeries = chart.addSeries(LightweightCharts.LineSeries, {
+    color: "rgb(255, 193, 7)",
+    lineWidth: 2,
+    title: "Ngân hàng",
+    lineType: LightweightCharts.LineType.WithSteps,
+    visible: false,
+  });
+  bankSeries.setData(bankData);
+
+  const indexSeries = chart.addSeries(LightweightCharts.LineSeries, {
+    color: "rgb(153, 102, 255)",
+    lineWidth: 2,
+    lineType: LightweightCharts.LineType.Curved,
+    title: "VN-INDEX",
+    visible: false,
+  });
+  indexSeries.setData(indexData);
+
+  chart.timeScale().fitContent();
+
+  let animId = null;
+  function animateOverlay(duration = 500) {
+    if (animId) cancelAnimationFrame(animId);
+    const start = performance.now();
+    function step(now) {
+      renderOverlay();
+      if (now - start < duration) {
+        animId = requestAnimationFrame(step);
+      } else {
+        animId = null;
+      }
+    }
+    animId = requestAnimationFrame(step);
+  }
+
+  function renderOverlay() {
+    if (!overlayCtx || !assetSeries || !investmentSeries) return;
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    
+    const logicalRange = chart.timeScale().getVisibleLogicalRange();
+    if (!logicalRange) return;
+
+    const fromIndex = Math.max(0, Math.floor(logicalRange.from) - 1);
+    const toIndex = Math.min(assetData.length - 1, Math.ceil(logicalRange.to) + 1);
+
+    if (fromIndex >= toIndex) return;
+
+    // TradingView Standard Gradient Fills
+    const greenGrad = overlayCtx.createLinearGradient(0, 0, 0, overlayCanvas.height);
+    greenGrad.addColorStop(0, "rgba(40, 167, 69, 0.35)");
+    greenGrad.addColorStop(1, "rgba(40, 167, 69, 0.02)");
+
+    const redGrad = overlayCtx.createLinearGradient(0, 0, 0, overlayCanvas.height);
+    redGrad.addColorStop(0, "rgba(247, 82, 95, 0.02)");
+    redGrad.addColorStop(1, "rgba(247, 82, 95, 0.35)");
+
+    overlayCtx.save();
+    for (let i = fromIndex; i < toIndex; i++) {
+       const d1 = assetData[i];
+       const d2 = assetData[i+1];
+       const i1 = investmentData[i];
+       
+       if (!d1 || !d2 || !i1) continue;
+       
+       const x1 = chart.timeScale().timeToCoordinate(d1.time);
+       const x2 = chart.timeScale().timeToCoordinate(d2.time);
+       if (x1 === null || x2 === null) continue;
+
+       const ay1 = assetSeries.priceToCoordinate(d1.value);
+       const ay2 = assetSeries.priceToCoordinate(d2.value);
+       const iy1 = investmentSeries.priceToCoordinate(i1.value);
+       
+       if (ay1 === null || ay2 === null || iy1 === null) continue;
+
+       let isProfit1 = d1.value >= i1.value;
+       let isProfit2 = d2.value >= i1.value;
+
+       if (isProfit1 === isProfit2) {
+           overlayCtx.beginPath();
+           overlayCtx.moveTo(x1, ay1);
+           overlayCtx.lineTo(x2, ay2);
+           overlayCtx.lineTo(x2, iy1);
+           overlayCtx.lineTo(x1, iy1);
+           overlayCtx.closePath();
+           overlayCtx.fillStyle = isProfit1 ? greenGrad : redGrad;
+           overlayCtx.fill();
+       } else {
+           const t = (iy1 - ay1) / (ay2 - ay1);
+           const crossX = x1 + t * (x2 - x1);
+           const crossY = iy1;
+
+           overlayCtx.beginPath();
+           overlayCtx.moveTo(x1, ay1);
+           overlayCtx.lineTo(crossX, crossY);
+           overlayCtx.lineTo(x1, iy1);
+           overlayCtx.closePath();
+           overlayCtx.fillStyle = isProfit1 ? greenGrad : redGrad;
+           overlayCtx.fill();
+
+           overlayCtx.beginPath();
+           overlayCtx.moveTo(crossX, crossY);
+           overlayCtx.lineTo(x2, ay2);
+           overlayCtx.lineTo(x2, iy1);
+           overlayCtx.closePath();
+           overlayCtx.fillStyle = isProfit2 ? greenGrad : redGrad;
+           overlayCtx.fill();
+       }
+    }
+    overlayCtx.restore();
+  }
+
+  chart.timeScale().subscribeVisibleTimeRangeChange(renderOverlay);
+  chart.subscribeCrosshairMove(renderOverlay);
+  
+  // Đảm bảo vẽ lần đầu sau khi load data
+  setTimeout(() => {
+    chart.timeScale().fitContent();
+    syncOverlaySize();
+    animateOverlay(500);
+  }, 100);
+
+  // Reset Zoom
+  const btnReset = document.getElementById("resetZoom");
+  if (btnReset) {
+    btnReset.addEventListener("click", () => {
+      chart.timeScale().fitContent();
+      animateOverlay(500);
     });
   }
 
+  // Toggles
+  const toggleBank = document.getElementById("toggleBank");
+  if (toggleBank) {
+    toggleBank.addEventListener("click", function () {
+      const isVisible = bankSeries.options().visible;
+      bankSeries.applyOptions({ visible: !isVisible });
+      this.classList.toggle("selected", !isVisible);
+      animateOverlay(500);
+    });
+  }
+
+  const toggleIndex = document.getElementById("toggleIndex");
   if (toggleIndex) {
     toggleIndex.addEventListener("click", function () {
-      const indexDs = myChart.data.datasets.find((ds) =>
-        ds.label.includes("VN-INDEX"),
-      );
-      if (indexDs) {
-        indexDs.hidden = !indexDs.hidden;
-        this.classList.toggle("selected", !indexDs.hidden);
-        myChart.update();
-      }
+      const isVisible = indexSeries.options().visible;
+      indexSeries.applyOptions({ visible: !isVisible });
+      this.classList.toggle("selected", !isVisible);
+      animateOverlay(500);
     });
   }
 });
@@ -377,7 +473,9 @@ document.addEventListener("DOMContentLoaded", function () {
     pillsContainer.querySelectorAll(".btn-ledger-pill").forEach((btn) => {
       btn.addEventListener("click", function () {
         currentSelectedCategory = this.getAttribute("data-cat");
-        pillsContainer.querySelectorAll(".btn-ledger-pill").forEach((b) => b.classList.remove("active"));
+        pillsContainer
+          .querySelectorAll(".btn-ledger-pill")
+          .forEach((b) => b.classList.remove("active"));
         this.classList.add("active");
         renderFilteredLedgerEntries();
       });
@@ -387,7 +485,9 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderFilteredLedgerEntries() {
     let filtered = allLedgerEntries;
     if (currentSelectedCategory !== "ALL") {
-      filtered = allLedgerEntries.filter((e) => e.category === currentSelectedCategory);
+      filtered = allLedgerEntries.filter(
+        (e) => e.category === currentSelectedCategory,
+      );
     }
     renderLedgerEntries(filtered);
   }
@@ -420,20 +520,32 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!desc) return "";
     if (desc === "Capital Injection") return "Nộp thêm vốn đầu tư";
     if (desc.startsWith("BUY ")) {
-      return desc.replace(/^BUY\s+([\d.]+)\s+([A-Z0-9]+)\s+@\s+([\d.]+)/, (m, qty, code, price) => {
-        return `Mua ${Number(qty).toLocaleString("en-US")} CP ${code} @ ${Number(price).toLocaleString("en-US")} đ`;
-      });
+      return desc.replace(
+        /^BUY\s+([\d.]+)\s+([A-Z0-9]+)\s+@\s+([\d.]+)/,
+        (m, qty, code, price) => {
+          return `Mua ${Number(qty).toLocaleString("en-US")} CP ${code} @ ${Number(price).toLocaleString("en-US")} đ`;
+        },
+      );
     }
     if (desc.startsWith("SELL ")) {
-      return desc.replace(/^SELL\s+([\d.]+)\s+([A-Z0-9]+)\s+@\s+([\d.]+)/, (m, qty, code, price) => {
-        return `Bán ${Number(qty).toLocaleString("en-US")} CP ${code} @ ${Number(price).toLocaleString("en-US")} đ`;
-      });
+      return desc.replace(
+        /^SELL\s+([\d.]+)\s+([A-Z0-9]+)\s+@\s+([\d.]+)/,
+        (m, qty, code, price) => {
+          return `Bán ${Number(qty).toLocaleString("en-US")} CP ${code} @ ${Number(price).toLocaleString("en-US")} đ`;
+        },
+      );
     }
     if (desc.startsWith("Settle cash dividend for ")) {
-      return desc.replace("Settle cash dividend for ", "Thanh toán cổ tức tiền mặt ");
+      return desc.replace(
+        "Settle cash dividend for ",
+        "Thanh toán cổ tức tiền mặt ",
+      );
     }
     if (desc.startsWith("Accrue cash dividend for ")) {
-      return desc.replace("Accrue cash dividend for ", "Ghi nhận quyền cổ tức ");
+      return desc.replace(
+        "Accrue cash dividend for ",
+        "Ghi nhận quyền cổ tức ",
+      );
     }
     return desc;
   }
@@ -469,7 +581,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 <span class="account-type">${humanizeAccountType(p.account_type)}</span>
                 <span class="debit-val">${p.debit > 0 ? p.debit.toLocaleString("en-US") + " đ" : "-"}</span>
                 <span class="credit-val">${p.credit > 0 ? p.credit.toLocaleString("en-US") + " đ" : "-"}</span>
-                <span class="stock-code">${p.stock_id ? '<span class="stock-badge">' + p.stock_id + '</span>' : "-"}</span>
+                <span class="stock-code">${p.stock_id ? '<span class="stock-badge">' + p.stock_id + "</span>" : "-"}</span>
               </div>
             `,
               )

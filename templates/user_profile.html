@@ -10,6 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
     <div class="top-nav-bar">
@@ -135,8 +136,9 @@
                     <h3>Lịch Sử Biến Động Tài Sản</h3>
                 </div>
 
-                <div class="chart-container" style="height: 330px;">
-                    <canvas id="profitChart" style="width: 100%; height: 100%;"></canvas>
+                <div class="chart-container" style="height: 330px; position: relative;">
+                    <div id="profitChartContainer" style="width: 100%; height: 100%;"></div>
+                    <canvas id="profitChartOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2;"></canvas>
                 </div>
 
                 <div id="chartControls" class="dark-chart-controls">
@@ -144,7 +146,7 @@
                         <i data-lucide="landmark"></i> Lợi Nhuận Gửi Ngân Hàng (5%/năm)
                     </button>
                     <button id="toggleIndex" class="btn-dark-toggle">
-                        <i data-lucide="bar-chart-2"></i> Chỉ Số VN-INDEX
+                        <i data-lucide="bar-chart-2"></i> Nếu mua VN-INDEX
                     </button>
                     <button id="resetZoom" class="btn-dark-action">
                         <i data-lucide="rotate-ccw"></i> Reset Zoom
@@ -233,16 +235,16 @@
     </div>
 
     <script> 
-        profit_percentage = {{ profit_chart_profit_percent|safe }};
-        chart_labels = {{ chart_labels|tojson|safe }};
-        chart_data = {{ chart_data|tojson|safe }};
-        performance_data = {{ performance_data|tojson|safe }};
-        profit_chart_labels = {{ profit_chart_labels|tojson|safe }}; 
-        profit_chart_total_asset = {{ profit_chart_total_asset|tojson|safe }}; 
-        profit_chart_total_asset_bank = {{ profit_chart_total_asset_bank|tojson|safe }}; 
-        profit_chart_total_asset_index = {{ profit_chart_total_asset_index|tojson|safe }}; 
-        profit_chart_total_investment = {{ profit_chart_total_investment|tojson|safe }}; 
-        current_user_id = {{ user.id }};
+        profit_percentage = JSON.parse('{{ profit_chart_profit_percent|tojson|safe }}');
+        chart_labels = JSON.parse('{{ chart_labels|tojson|safe }}');
+        chart_data = JSON.parse('{{ chart_data|tojson|safe }}');
+        performance_data = JSON.parse('{{ performance_data|tojson|safe }}');
+        profit_chart_labels = JSON.parse('{{ profit_chart_labels|tojson|safe }}'); 
+        profit_chart_total_asset = JSON.parse('{{ profit_chart_total_asset|tojson|safe }}'); 
+        profit_chart_total_asset_bank = JSON.parse('{{ profit_chart_total_asset_bank|tojson|safe }}'); 
+        profit_chart_total_asset_index = JSON.parse('{{ profit_chart_total_asset_index|tojson|safe }}'); 
+        profit_chart_total_investment = JSON.parse('{{ profit_chart_total_investment|tojson|safe }}'); 
+        current_user_id = Number('{{ user.id }}');
     </script>
     <script src="{{ url_for('static', filename='js/user_profile.js') }}"></script>
     <script>

@@ -67,6 +67,33 @@ document.addEventListener("DOMContentLoaded", function () {
     },
   };
 
+  const chartColors = [
+    "rgba(255, 99, 132, 0.9)",
+    "rgba(54, 162, 235, 0.9)",
+    "rgba(255, 206, 86, 0.9)",
+    "rgba(75, 192, 192, 0.9)",
+    "rgba(255, 159, 64, 0.9)",
+    "rgba(199, 199, 199, 0.9)",
+    "rgba(100, 205, 100, 0.9)",
+    "rgba(220, 180, 0, 0.9)",
+  ];
+
+  const pieLegendContainer = document.getElementById("pieLegendContainer");
+  if (pieLegendContainer && typeof chart_labels !== "undefined" && Array.isArray(chart_labels)) {
+    let legendHtml = "";
+    chart_labels.forEach((label, i) => {
+      const color = chartColors[i % chartColors.length];
+      const displayLabel = label === "Cash" ? "Tiền" : label;
+      legendHtml += `
+        <div class="pie-legend-item">
+          <span class="pie-legend-dot" style="background-color: ${color};"></span>
+          <span>${displayLabel}</span>
+        </div>
+      `;
+    });
+    pieLegendContainer.innerHTML = legendHtml;
+  }
+
   new Chart(ctx, {
     type: "doughnut",
     data: {
@@ -75,27 +102,12 @@ document.addEventListener("DOMContentLoaded", function () {
         {
           label: "Tỉ lệ cổ phiếu",
           data: chart_data,
-          backgroundColor: [
-            "rgba(255, 99, 132, 0.7)",
-            "rgba(54, 162, 235, 0.7)",
-            "rgba(255, 206, 86, 0.7)",
-            "rgba(75, 192, 192, 0.7)",
-            "rgba(255, 159, 64, 0.7)",
-            "rgba(199, 199, 199, 0.7)",
-            "rgba(100, 205, 100, 0.7)",
-            "rgba(220, 180, 0, 0.7)",
-          ],
-          borderColor: [
-            "rgba(255, 99, 132, 1)",
-            "rgba(54, 162, 235, 1)",
-            "rgba(255, 206, 86, 1)",
-            "rgba(75, 192, 192, 1)",
-            "rgba(153, 102, 255, 1)",
-            "rgba(255, 159, 64, 1)",
-            "rgba(199, 199, 199, 1)",
-            "rgba(100, 205, 100, 1)",
-          ],
+          backgroundColor: chartColors,
+          borderColor: chartColors,
           borderWidth: 1,
+          hoverOffset: 15,
+          hoverBorderColor: "#ffffff",
+          hoverBorderWidth: 2,
         },
       ],
     },
@@ -106,8 +118,7 @@ document.addEventListener("DOMContentLoaded", function () {
       cutout: "60%",
       plugins: {
         legend: {
-          position: "top",
-          labels: { color: "#a5b8c9", font: { size: 12 } },
+          display: false,
         },
         tooltip: {
           callbacks: {
@@ -199,7 +210,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const parts = dateStr.split("/");
       let yyyyMmDd = dateStr;
       if (parts.length === 3) {
-         yyyyMmDd = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        yyyyMmDd = `${parts[2]}-${parts[1]}-${parts[0]}`;
       }
       return { time: yyyyMmDd, value: values[i] };
     });
@@ -271,82 +282,95 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderOverlay() {
     if (!overlayCtx || !assetSeries || !investmentSeries) return;
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    
+
     const logicalRange = chart.timeScale().getVisibleLogicalRange();
     if (!logicalRange) return;
 
     const fromIndex = Math.max(0, Math.floor(logicalRange.from) - 1);
-    const toIndex = Math.min(assetData.length - 1, Math.ceil(logicalRange.to) + 1);
+    const toIndex = Math.min(
+      assetData.length - 1,
+      Math.ceil(logicalRange.to) + 1,
+    );
 
     if (fromIndex >= toIndex) return;
 
     // TradingView Standard Gradient Fills
-    const greenGrad = overlayCtx.createLinearGradient(0, 0, 0, overlayCanvas.height);
+    const greenGrad = overlayCtx.createLinearGradient(
+      0,
+      0,
+      0,
+      overlayCanvas.height,
+    );
     greenGrad.addColorStop(0, "rgba(40, 167, 69, 0.35)");
     greenGrad.addColorStop(1, "rgba(40, 167, 69, 0.02)");
 
-    const redGrad = overlayCtx.createLinearGradient(0, 0, 0, overlayCanvas.height);
+    const redGrad = overlayCtx.createLinearGradient(
+      0,
+      0,
+      0,
+      overlayCanvas.height,
+    );
     redGrad.addColorStop(0, "rgba(247, 82, 95, 0.02)");
     redGrad.addColorStop(1, "rgba(247, 82, 95, 0.35)");
 
     overlayCtx.save();
     for (let i = fromIndex; i < toIndex; i++) {
-       const d1 = assetData[i];
-       const d2 = assetData[i+1];
-       const i1 = investmentData[i];
-       
-       if (!d1 || !d2 || !i1) continue;
-       
-       const x1 = chart.timeScale().timeToCoordinate(d1.time);
-       const x2 = chart.timeScale().timeToCoordinate(d2.time);
-       if (x1 === null || x2 === null) continue;
+      const d1 = assetData[i];
+      const d2 = assetData[i + 1];
+      const i1 = investmentData[i];
 
-       const ay1 = assetSeries.priceToCoordinate(d1.value);
-       const ay2 = assetSeries.priceToCoordinate(d2.value);
-       const iy1 = investmentSeries.priceToCoordinate(i1.value);
-       
-       if (ay1 === null || ay2 === null || iy1 === null) continue;
+      if (!d1 || !d2 || !i1) continue;
 
-       let isProfit1 = d1.value >= i1.value;
-       let isProfit2 = d2.value >= i1.value;
+      const x1 = chart.timeScale().timeToCoordinate(d1.time);
+      const x2 = chart.timeScale().timeToCoordinate(d2.time);
+      if (x1 === null || x2 === null) continue;
 
-       if (isProfit1 === isProfit2) {
-           overlayCtx.beginPath();
-           overlayCtx.moveTo(x1, ay1);
-           overlayCtx.lineTo(x2, ay2);
-           overlayCtx.lineTo(x2, iy1);
-           overlayCtx.lineTo(x1, iy1);
-           overlayCtx.closePath();
-           overlayCtx.fillStyle = isProfit1 ? greenGrad : redGrad;
-           overlayCtx.fill();
-       } else {
-           const t = (iy1 - ay1) / (ay2 - ay1);
-           const crossX = x1 + t * (x2 - x1);
-           const crossY = iy1;
+      const ay1 = assetSeries.priceToCoordinate(d1.value);
+      const ay2 = assetSeries.priceToCoordinate(d2.value);
+      const iy1 = investmentSeries.priceToCoordinate(i1.value);
 
-           overlayCtx.beginPath();
-           overlayCtx.moveTo(x1, ay1);
-           overlayCtx.lineTo(crossX, crossY);
-           overlayCtx.lineTo(x1, iy1);
-           overlayCtx.closePath();
-           overlayCtx.fillStyle = isProfit1 ? greenGrad : redGrad;
-           overlayCtx.fill();
+      if (ay1 === null || ay2 === null || iy1 === null) continue;
 
-           overlayCtx.beginPath();
-           overlayCtx.moveTo(crossX, crossY);
-           overlayCtx.lineTo(x2, ay2);
-           overlayCtx.lineTo(x2, iy1);
-           overlayCtx.closePath();
-           overlayCtx.fillStyle = isProfit2 ? greenGrad : redGrad;
-           overlayCtx.fill();
-       }
+      let isProfit1 = d1.value >= i1.value;
+      let isProfit2 = d2.value >= i1.value;
+
+      if (isProfit1 === isProfit2) {
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(x1, ay1);
+        overlayCtx.lineTo(x2, ay2);
+        overlayCtx.lineTo(x2, iy1);
+        overlayCtx.lineTo(x1, iy1);
+        overlayCtx.closePath();
+        overlayCtx.fillStyle = isProfit1 ? greenGrad : redGrad;
+        overlayCtx.fill();
+      } else {
+        const t = (iy1 - ay1) / (ay2 - ay1);
+        const crossX = x1 + t * (x2 - x1);
+        const crossY = iy1;
+
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(x1, ay1);
+        overlayCtx.lineTo(crossX, crossY);
+        overlayCtx.lineTo(x1, iy1);
+        overlayCtx.closePath();
+        overlayCtx.fillStyle = isProfit1 ? greenGrad : redGrad;
+        overlayCtx.fill();
+
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(crossX, crossY);
+        overlayCtx.lineTo(x2, ay2);
+        overlayCtx.lineTo(x2, iy1);
+        overlayCtx.closePath();
+        overlayCtx.fillStyle = isProfit2 ? greenGrad : redGrad;
+        overlayCtx.fill();
+      }
     }
     overlayCtx.restore();
   }
 
   chart.timeScale().subscribeVisibleTimeRangeChange(renderOverlay);
   chart.subscribeCrosshairMove(renderOverlay);
-  
+
   // Đảm bảo vẽ lần đầu sau khi load data
   setTimeout(() => {
     chart.timeScale().fitContent();
@@ -370,6 +394,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const isVisible = bankSeries.options().visible;
       bankSeries.applyOptions({ visible: !isVisible });
       this.classList.toggle("selected", !isVisible);
+      const icon = this.querySelector(".chip-status-icon");
+      if (icon) icon.textContent = !isVisible ? "✓" : "+";
       animateOverlay(500);
     });
   }
@@ -380,6 +406,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const isVisible = indexSeries.options().visible;
       indexSeries.applyOptions({ visible: !isVisible });
       this.classList.toggle("selected", !isVisible);
+      const icon = this.querySelector(".chip-status-icon");
+      if (icon) icon.textContent = !isVisible ? "✓" : "+";
       animateOverlay(500);
     });
   }
@@ -550,6 +578,24 @@ document.addEventListener("DOMContentLoaded", function () {
     return desc;
   }
 
+  function getPostingColorStyle(p, side) {
+    if (side === "debit" && p.debit > 0) {
+      if (p.account_type === "ASSET")
+        return "color: #4ade80; font-weight: 600;";
+      if (p.account_type === "EXPENSE")
+        return "color: #f87171; font-weight: 600;";
+      return "color: #4ade80; font-weight: 600;";
+    }
+    if (side === "credit" && p.credit > 0) {
+      if (p.account_type === "ASSET")
+        return "color: #f87171; font-weight: 600;";
+      if (p.account_type === "REVENUE" || p.account_type === "EQUITY")
+        return "color: #4ade80; font-weight: 600;";
+      return "color: #f87171; font-weight: 600;";
+    }
+    return "color: #64748b;";
+  }
+
   function renderLedgerEntries(entries) {
     if (entries.length === 0) {
       containerList.innerHTML =
@@ -558,36 +604,35 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     let html = "";
-    entries.forEach((e) => {
+    entries.forEach((e, idx) => {
       html += `
-        <div class="ledger-entry-card">
+        <div class="ledger-entry-clean">
           <div class="entry-header">
             <span class="entry-date">${e.entry_date}</span>
             <span class="entry-desc">${humanizeDescription(e.description)}</span>
           </div>
           <div class="postings-table">
-            <div class="postings-head">
+            <div class="postings-head-clean">
               <span>Tài Khoản Kế Toán</span>
-              <span style="text-align: center;">Loại</span>
               <span style="text-align: right;">Nợ</span>
               <span style="text-align: right;">Có</span>
-              <span style="text-align: center;">Mã CP</span>
             </div>
             ${e.postings
               .map(
                 (p) => `
-              <div class="posting-row">
-                <span class="account-name" title="${humanizeAccountName(p.account_name)}">${humanizeAccountName(p.account_name)}</span>
-                <span class="account-type">${humanizeAccountType(p.account_type)}</span>
-                <span class="debit-val">${p.debit > 0 ? p.debit.toLocaleString("en-US") + " đ" : "-"}</span>
-                <span class="credit-val">${p.credit > 0 ? p.credit.toLocaleString("en-US") + " đ" : "-"}</span>
-                <span class="stock-code">${p.stock_id ? '<span class="stock-badge">' + p.stock_id + "</span>" : "-"}</span>
+              <div class="posting-row-clean">
+                <span class="account-name" title="${humanizeAccountName(p.account_name)}">
+                  ${humanizeAccountName(p.account_name)}${p.stock_id ? ' <span class="stock-ticker">(' + p.stock_id + ")</span>" : ""}
+                </span>
+                <span class="debit-val" style="${getPostingColorStyle(p, "debit")}">${p.debit > 0 ? p.debit.toLocaleString("en-US") + " đ" : ""}</span>
+                <span class="credit-val" style="${getPostingColorStyle(p, "credit")}">${p.credit > 0 ? p.credit.toLocaleString("en-US") + " đ" : ""}</span>
               </div>
             `,
               )
               .join("")}
           </div>
         </div>
+        ${idx < entries.length - 1 ? '<hr class="ledger-hr" />' : ""}
       `;
     });
 

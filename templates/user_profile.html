@@ -34,40 +34,51 @@
         </button>
     </div>
 
-    <div class="desktop-only">
-        
-        <!-- TẦNG 1: LAYOUT GỐC (Doughnut Chart 365px bên trái + Bảng Danh Mục Cổ Phiếu Full-Width bên phải) -->
-        <h2 style="color:#38bdf8; margin-bottom: 12px;"><i data-lucide="pie-chart"></i> Tỉ Lệ Tài Sản Trong Danh Mục</h2>
-        <div style="display: flex; gap: 20px;">
-            <div style="width: 365px; height: 385px; background: rgba(23, 32, 54, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 12px; box-sizing: border-box;">
-                <canvas id="portfolioPieChart"></canvas>
+        <!-- TẦNG 1: LAYOUT GỐC (Doughnut Chart bên trái + Bảng Danh Mục Cổ Phiếu bên phải) -->
+        <div class="tier-1-row">
+            <div class="pie-chart-card">
+                <div class="card-title-sm">
+                    <i data-lucide="pie-chart"></i>
+                    <h3>Tỉ Lệ Tài Sản Trong Danh Mục</h3>
+                </div>
+                <div id="pieLegendContainer" class="pie-legend-grid"></div>
+                <div class="pie-canvas-wrapper">
+                    <canvas id="portfolioPieChart"></canvas>
+                </div>
             </div>
             <div class="portfolio">
                 <div class="portfolio-header">DANH MỤC CỔ PHIẾU</div>
                 <div class="holdings-scroll-body" style="max-height: 330px; overflow-y: auto;">
                     <div class="portfolio-header profile-table-row sticky-header">
-                        <span>Tên Công Ty</span>
-                        <span style="text-align: center;">Mã Cổ Phiếu</span>
+                        <span style="text-align: center;">Mã CP</span>
                         <span style="text-align: right;">Khối Lượng</span>
-                        <span style="text-align: right;">Giá Vốn (VNĐ)</span>
+                        <span class="desktop-only-cell" style="text-align: right;">Giá Vốn (VNĐ)</span>
                         <span style="text-align: right;">Thị Giá (VNĐ)</span>
-                        <span style="text-align: right;">Lợi Nhuận (VNĐ)</span>
+                        <span class="desktop-only-cell" style="text-align: right;">Giá Trị (VNĐ)</span>
+                        <span class="desktop-only-cell" style="text-align: right;">Lợi Nhuận (VNĐ)</span>
                         <span style="text-align: right;">Lợi Nhuận (%)</span>
                     </div>
                     {% if portfolio_data %}
                         {% for row in portfolio_data %}
-                        <div class="portfolio-row profile-table-row">
-                            <span class="company-name-text">{{ row.company_name }}</span>
-                            <span style="text-align: center;"><span class="stock-badge">{{ row.stock_code }}</span></span>
-                            <span style="text-align: right;">{{ row.current_quantity | thousands }}</span>
-                            <span style="text-align: right;">{{ row.average_cost | thousands }}</span>
-                            <span style="text-align: right;">{{ row.current_price | thousands }}</span>
-                            <span style="text-align: right;" class="{% if row.total_profit_in_cash >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
-                                {% if row.total_profit_in_cash >= 0 %}+{% endif %}{{ row.total_profit_in_cash | thousands }}
-                            </span>
-                            <span style="text-align: right;" class="{% if row.total_profit_in_percentage > 0 %}profit-positive{% elif row.total_profit_in_percentage < 0 %}profit-negative{% endif %}">
-                                {% if row.total_profit_in_percentage >= 0 %}+{% endif %}{{ "{:.2f}%".format(row.total_profit_in_percentage | default(0)) }}
-                            </span>
+                        <div class="portfolio-item-group">
+                            <div class="portfolio-row profile-table-row" onclick="this.closest('.portfolio-item-group').classList.toggle('expanded')">
+                                <span style="text-align: center;"><span class="stock-badge" title="{{ row.company_name }}">{{ row.stock_code }}</span></span>
+                                <span style="text-align: right;">{{ row.current_quantity | thousands }}</span>
+                                <span class="desktop-only-cell" style="text-align: right;">{{ row.average_cost | thousands }}</span>
+                                <span style="text-align: right;">{{ row.current_price | thousands }}</span>
+                                <span class="desktop-only-cell highlight-val" style="text-align: right;">{{ (row.current_quantity * row.current_price) | thousands }}</span>
+                                <span class="desktop-only-cell {% if row.total_profit_in_cash >= 0 %}profit-positive{% else %}profit-negative{% endif %}" style="text-align: right;">
+                                    {% if row.total_profit_in_cash >= 0 %}+{% endif %}{{ row.total_profit_in_cash | thousands }}
+                                </span>
+                                <span style="text-align: right;" class="{% if row.total_profit_in_percentage > 0 %}profit-positive{% elif row.total_profit_in_percentage < 0 %}profit-negative{% endif %}">
+                                    {% if row.total_profit_in_percentage >= 0 %}+{% endif %}{{ "{:.2f}%".format(row.total_profit_in_percentage | default(0)) }}
+                                </span>
+                            </div>
+                            <div class="stock-expanded-details mobile-only-block">
+                                <div class="detail-line"><strong>Tên công ty:</strong> <span>{{ row.company_name }}</span></div>
+                                <div class="detail-line"><strong>Giá vốn ban đầu:</strong> <span>{{ row.average_cost | thousands }} đ</span></div>
+                                <div class="detail-line"><strong>Lãi/Lỗ tiền mặt:</strong> <span class="{% if row.total_profit_in_cash >= 0 %}profit-positive{% else %}profit-negative{% endif %}">{% if row.total_profit_in_cash >= 0 %}+{% endif %}{{ row.total_profit_in_cash | thousands }} đ</span></div>
+                            </div>
                         </div>
                         {% endfor %}
                     {% else %}
@@ -131,26 +142,33 @@
 
             <!-- Biểu Đồ Lịch Sử Biến Động Tài Sản -->
             <div class="profit-trend-card">
-                <div class="card-title-sm">
-                    <i data-lucide="line-chart"></i>
-                    <h3>Lịch Sử Biến Động Tài Sản</h3>
+                <div class="profit-card-header">
+                    <div class="card-title-sm" style="margin-bottom: 0;">
+                        <i data-lucide="line-chart"></i>
+                        <h3>Lịch Sử Biến Động Tài Sản</h3>
+                    </div>
+                    <div id="chartControls" class="chart-top-controls">
+                        <button id="toggleBank" class="btn-chip-toggle btn-chip-bank">
+                            <span class="chip-status-icon">+</span>
+                            <i data-lucide="landmark"></i>
+                            <span class="desktop-only-inline">Lợi Nhuận Gửi Ngân Hàng (5%/năm)</span>
+                            <span class="mobile-only-inline">Ngân hàng 5%</span>
+                        </button>
+                        <button id="toggleIndex" class="btn-chip-toggle btn-chip-index">
+                            <span class="chip-status-icon">+</span>
+                            <i data-lucide="bar-chart-2"></i>
+                            <span class="desktop-only-inline">Nếu Mua VN-INDEX</span>
+                            <span class="mobile-only-inline">VN-INDEX</span>
+                        </button>
+                        <button id="resetZoom" class="btn-reset-zoom" title="Reset Zoom">
+                            <i data-lucide="rotate-ccw"></i> <span>Reset</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="chart-container" style="height: 330px; position: relative;">
+                <div class="chart-container" style="height: 300px; position: relative;">
                     <div id="profitChartContainer" style="width: 100%; height: 100%;"></div>
                     <canvas id="profitChartOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2;"></canvas>
-                </div>
-
-                <div id="chartControls" class="dark-chart-controls">
-                    <button id="toggleBank" class="btn-dark-toggle">
-                        <i data-lucide="landmark"></i> Lợi Nhuận Gửi Ngân Hàng (5%/năm)
-                    </button>
-                    <button id="toggleIndex" class="btn-dark-toggle">
-                        <i data-lucide="bar-chart-2"></i> Nếu mua VN-INDEX
-                    </button>
-                    <button id="resetZoom" class="btn-dark-action">
-                        <i data-lucide="rotate-ccw"></i> Reset Zoom
-                    </button>
                 </div>
             </div>
         </div>
@@ -207,8 +225,6 @@
                 </div>
             </div>
         </div>
-
-    </div>
 
     <!-- Slide-over Modal: Expert Double-Entry Journal Explorer (Hidden by default) -->
     <div id="expertLedgerModal" class="expert-modal-overlay" style="display: none;">

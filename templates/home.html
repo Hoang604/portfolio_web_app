@@ -66,78 +66,78 @@
   </div>
 
   <!-- Investors Section -->
-  <div class="section-title">
-    <i data-lucide="user-check"></i>
-    <h2>Danh Sách Nhà Đầu Tư</h2>
-  </div>
+  <div class="investors-container">
+    <div class="section-title">
+      <i data-lucide="user-check"></i>
+      <h2>Danh Sách Nhà Đầu Tư</h2>
+    </div>
 
-  <!-- Desktop Table Container -->
-  <div class="perf-view-frame desktop-only">
-      <div class="table-header table-row">
-          <span>Nhà Đầu Tư</span>
-          <span style="text-align: right;">Tiền Mặt (VNĐ)</span>
-          <span style="text-align: right;">Vốn Góp (VNĐ)</span>
-          <span style="text-align: right;">Cổ Phiếu (VNĐ)</span>
-          <span style="text-align: right;">Tổng Tài Sản (VNĐ)</span>
-          <span style="text-align: right;">Lợi Nhuận (VNĐ)</span>
-          <span style="text-align: right;">ROR (%)</span>
-          <span style="text-align: center;">Thao Tác</span>
-      </div>
+    <!-- Desktop Table Container -->
+    <div class="perf-view-frame desktop-only">
+        <div class="table-header table-row">
+            <span>Nhà Đầu Tư</span>
+            <span style="text-align: right;">Tiền Mặt (VNĐ)</span>
+            <span style="text-align: right;">Vốn Góp (VNĐ)</span>
+            <span style="text-align: right;">Cổ Phiếu (VNĐ)</span>
+            <span style="text-align: right;">Tổng Tài Sản (VNĐ)</span>
+            <span style="text-align: right;">Lợi Nhuận (VNĐ)</span>
+            <span style="text-align: right;">Lợi Nhuận (%)</span>
+        </div>
 
-      {% for user_perf in users_performance %}
-      <div class="table-row" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
-          <span class="user-cell">
-            <i data-lucide="user" class="icon-small"></i>
-            <span class="user-name-text">{{ user_perf.name }}</span>
-          </span>
-          <span style="text-align: right;">{{ user_perf.cash_balance | thousands }}</span>
-          <span style="text-align: right;">{{ user_perf.total_investment | thousands }}</span>
-          <span style="text-align: right;">{{ user_perf.total_current_value | thousands }}</span>
-          <span style="text-align: right;" class="highlight-val">{{ user_perf.total_asset | thousands }}</span>
-          <span style="text-align: right;" class="{% if user_perf.profit_in_cash >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
-            {% if user_perf.profit_in_cash >= 0 %}+{% endif %}{{ user_perf.profit_in_cash | thousands }}
-          </span>
-          <span style="text-align: right;" class="{% if user_perf.profit_percent >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
-              {% if user_perf.total_investment and user_perf.total_investment != 0 %}
-                  {% if user_perf.profit_percent >= 0 %}+{% endif %}{{ "{:.2f}%".format(user_perf.profit_percent) }}
-              {% else %}
-                  N/A
-              {% endif %}
-          </span>
-          <span style="text-align: center;" class="action-cell">
-            <a href="/user/{{ user_perf.user_id }}" class="btn-view-profile">
-              Chi tiết <i data-lucide="chevron-right" class="icon-small"></i>
-            </a>
-          </span>
-      </div>
-      {% endfor %}
-  </div>
+        {% for user_perf in users_performance %}
+        <div class="table-row" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
+            <span class="user-cell">
+              <i data-lucide="user" class="icon-small"></i>
+              <span class="user-name-text">{{ user_perf.name }}</span>
+            </span>
+            <span style="text-align: right;">{{ user_perf.cash_balance | thousands }}</span>
+            <span style="text-align: right;">{{ user_perf.total_investment | thousands }}</span>
+            <span style="text-align: right;">{{ user_perf.total_current_value | thousands }}</span>
+            <span style="text-align: right;" class="highlight-val">{{ user_perf.total_asset | thousands }}</span>
+            <span style="text-align: right;" class="{% if user_perf.profit_in_cash >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+              {% if user_perf.profit_in_cash >= 0 %}+{% endif %}{{ user_perf.profit_in_cash | thousands }}
+            </span>
+            <span style="text-align: right;" class="ror-cell {% if user_perf.profit_percent >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
+                {% if user_perf.total_investment and user_perf.total_investment != 0 %}
+                    {% if user_perf.profit_percent >= 0 %}+{% endif %}{{ "{:.2f}%".format(user_perf.profit_percent) }}
+                {% else %}
+                    N/A
+                {% endif %}
+                <i data-lucide="chevron-right" class="icon-small icon-row-arrow"></i>
+            </span>
+        </div>
+        {% endfor %}
+    </div>
 
-  <!-- Mobile View Cards -->
-  <div class="perf-view-frame mobile-only"> 
-      <div class="mobile-table-header mobile-table-row">
-          <span>Nhà Đầu Tư</span>
-          <span style="text-align: right;">Tổng Tài Sản</span>
-          <span style="text-align: right;">Lợi Nhuận (%)</span>
-          <span style="text-align: center;">Chi Tiết</span>
-      </div>
-
-      {% for user_perf in users_performance %}
-      <div class="mobile-table-row" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
-          <span class="user-cell">{{ user_perf.name }}</span>
-          <span style="text-align: right;" class="highlight-val">{{ user_perf.total_asset | compact_vnd }}</span>
-          <span style="text-align: right;" class="{% if user_perf.profit_percent >= 0 %}profit-positive{% else %}profit-negative{% endif %}">
-              {% if user_perf.total_investment and user_perf.total_investment != 0 %}
-                  {% if user_perf.profit_percent >= 0 %}+{% endif %}{{ "{:.2f}%".format(user_perf.profit_percent) }}
-              {% else %}
-                  N/A
-              {% endif %}
-          </span>
-          <span style="text-align: center;" class="detail-link">
-              <i data-lucide="chevron-right"></i>
-          </span>
-      </div>
-      {% endfor %}
+    <!-- Mobile View Cards (Option 1: Card List) -->
+    <div class="investor-cards-list mobile-only">
+        {% for user_perf in users_performance %}
+        <div class="investor-card-item" onclick="window.location.href='/user/{{ user_perf.user_id }}'">
+            <div class="investor-card-left">
+                <div class="investor-avatar">
+                    <i data-lucide="user" class="icon-avatar"></i>
+                </div>
+                <div class="investor-info">
+                    <span class="investor-name">{{ user_perf.name }}</span>
+                    <span class="investor-role">Nhà đầu tư</span>
+                </div>
+            </div>
+            <div class="investor-card-right">
+                <div class="investor-asset-val">{{ user_perf.total_asset | compact_vnd }}</div>
+                <div class="investor-ror-badge {% if user_perf.profit_percent >= 0 %}ror-positive{% else %}ror-negative{% endif %}">
+                    {% if user_perf.total_investment and user_perf.total_investment != 0 %}
+                        {% if user_perf.profit_percent >= 0 %}+{% endif %}{{ "{:.2f}%".format(user_perf.profit_percent) }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+            </div>
+            <div class="investor-card-arrow">
+                <i data-lucide="chevron-right" class="icon-chevron"></i>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
   </div>
 
   <script>

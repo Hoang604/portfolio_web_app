@@ -1,8 +1,0 @@
-def get_current_stock_price(stock_code, db):
-    cursor = db.cursor()
-    cursor.execute(
-        f"SELECT price FROM portfolio_stockprice where stock_id = '{stock_code}' ORDER BY date DESC LIMIT 1")
-    stock_price = cursor.fetchone()
-    if stock_price:
-        return float(stock_price[0])
-    return 0.0

@@ -24,19 +24,3 @@ class User:
         except mysql.connector.Error as err:
             print(f"Error get_by_id User: {err}")
             return None
-
-    @staticmethod
-    def get_all(mydb=None) -> list['User']:
-        if not mydb:
-            return []
-        try:
-            with mydb.cursor(dictionary=True) as cursor:
-                cursor.execute("SELECT * FROM portfolio_user")
-                results = cursor.fetchall()
-                return [User(**row) for row in results]
-        except mysql.connector.Error as err:
-            print(f"Error get_all Users: {err}")
-            return []
-
-    def __str__(self):
-        return f"User(ID: {self.id}, Name: {self.name}, Contact: {self.contact_info})"

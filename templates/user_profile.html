@@ -63,7 +63,7 @@
                         <div class="portfolio-item-group">
                             <div class="portfolio-row profile-table-row" onclick="this.closest('.portfolio-item-group').classList.toggle('expanded')">
                                 <span style="text-align: center;"><span class="stock-badge" title="{{ row.company_name }}">{{ row.stock_code }}</span></span>
-                                <span style="text-align: right;">{{ row.current_quantity | thousands }}</span>
+                                <span style="text-align: right;">{{ row.current_quantity | qty }}</span>
                                 <span class="desktop-only-cell" style="text-align: right;">{{ row.average_cost | thousands }}</span>
                                 <span style="text-align: right;">{{ row.current_price | thousands }}</span>
                                 <span class="desktop-only-cell highlight-val" style="text-align: right;">{{ (row.current_quantity * row.current_price) | thousands }}</span>
@@ -94,12 +94,12 @@
             <div class="dividend-card">
                 <div class="card-title-sm">
                     <i data-lucide="gift"></i>
-                    <h3>Lịch Sử Nhận Cổ Tức</h3>
+                    <h3>Lịch Sử Cổ Tức &amp; Quyền Mua</h3>
                 </div>
                 <div class="table-scroll-body">
                     <div class="profile-table-header dividend-grid sticky-header">
                         <span style="text-align: center;">Mã CP</span>
-                        <span style="text-align: left;">Ngày Trả</span>
+                        <span style="text-align: left;">Ngày Về/Trả</span>
                         <span style="text-align: center;">Loại</span>
                         <span style="text-align: right;">Mức/Tỉ Lệ</span>
                         <span style="text-align: right;">Thực Nhận</span>
@@ -110,13 +110,15 @@
                             <span style="text-align: center;"><span class="stock-badge">{{ div.stock_id }}</span></span>
                             <span style="text-align: left;">{{ div.payment_date }}</span>
                             <span style="text-align: center;">
-                                <span class="badge-type {% if div.dividend_type == 'Cash' %}badge-cash{% else %}badge-stock{% endif %}">
-                                    {% if div.dividend_type == 'Cash' %}Tiền Mặt{% else %}Cổ Phiếu{% endif %}
+                                <span class="badge-type {% if div.dividend_type == 'Cash' %}badge-cash{% elif div.dividend_type == 'Rights' %}badge-rights{% else %}badge-stock{% endif %}">
+                                    {% if div.dividend_type == 'Cash' %}Tiền Mặt{% elif div.dividend_type == 'Rights' %}Quyền Mua{% else %}Cổ Phiếu{% endif %}
                                 </span>
                             </span>
                             <span style="text-align: right; font-weight: 600;">
                                 {% if div.dividend_type == 'Cash' %}
                                     {{ div.cash_amount_per_share | thousands }} đ
+                                {% elif div.dividend_type == 'Rights' %}
+                                    {{ div.stock_ratio_denominator | int }}:{{ div.stock_ratio_numerator | int }} ({{ (div.cash_amount_per_share / 1000) | int }}k)
                                 {% else %}
                                     {{ div.stock_ratio_numerator | int }}:{{ div.stock_ratio_denominator | int }}
                                 {% endif %}
@@ -126,8 +128,10 @@
                                     <span style="color: #4ade80;">+{{ div.received_amount | thousands }} đ</span>
                                 {% elif div.dividend_type == 'Cash' %}
                                     <span style="color: #64748b;">0 đ</span>
+                                {% elif div.dividend_type == 'Rights' and div.received_shares and div.received_shares > 0 %}
+                                    <span style="color: #fbbf24;" title="Chi phí mua ưu đãi: {{ div.paid_amount | thousands }} đ">+{{ div.received_shares | qty }} CP</span>
                                 {% elif div.received_shares and div.received_shares > 0 %}
-                                    <span style="color: #c084fc;">+{{ div.received_shares | thousands }} CP</span>
+                                    <span style="color: #c084fc;">+{{ div.received_shares | qty }} CP</span>
                                 {% else %}
                                     <span style="color: #64748b;">0 CP</span>
                                 {% endif %}
@@ -213,7 +217,7 @@
                     <div class="profile-table-row tx-grid">
                         <span style="text-align: left;">{{ row.transaction_date }}</span>
                         <span style="text-align: center;"><span class="stock-badge">{{ row.stock_code }}</span></span>
-                        <span style="text-align: right;">{{ row.quantity | thousands }}</span>
+                        <span style="text-align: right;">{{ row.quantity | qty }}</span>
                         <span style="text-align: right; font-weight: 600;">{{ row.price_per_share | thousands }}</span>
                         <span style="text-align: center;">
                             <span class="badge-tx {% if row.transaction_type == 'BUY' %}badge-buy{% else %}badge-sell{% endif %}">
@@ -251,7 +255,6 @@
     </div>
 
     <script> 
-        profit_percentage = JSON.parse('{{ profit_chart_profit_percent|tojson|safe }}');
         chart_labels = JSON.parse('{{ chart_labels|tojson|safe }}');
         chart_data = JSON.parse('{{ chart_data|tojson|safe }}');
         performance_data = JSON.parse('{{ performance_data|tojson|safe }}');

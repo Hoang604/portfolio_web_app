@@ -108,6 +108,18 @@ def thousands_filter(value):
         return value
 
 
+@app.template_filter('qty')
+def qty_filter(value):
+    """Formats share quantities preserving fractional lots up to 2 decimal places."""
+    try:
+        val = float(value)
+        if val.is_integer():
+            return "{:,.0f}".format(val)
+        return "{:,.2f}".format(val).rstrip('0').rstrip('.')
+    except (ValueError, TypeError):
+        return value
+
+
 @app.template_filter('compact_vnd')
 def compact_vnd_filter(value):
     """Formats large monetary numbers concisely (e.g., 42.95M đ or 42,956,000 đ)."""

@@ -547,6 +547,15 @@ document.addEventListener("DOMContentLoaded", function () {
   function humanizeDescription(desc) {
     if (!desc) return "";
     if (desc === "Capital Injection") return "Nộp thêm vốn đầu tư";
+    if (desc === "Capital Withdrawal") return "Rút vốn đầu tư";
+    if (desc.startsWith("Exercise rights issue ")) {
+      return desc.replace(
+        /^Exercise rights issue\s+([\d.]+)\s+([A-Z0-9]+)\s+@\s+([\d.]+)/,
+        (m, qty, code, price) => {
+          return `Thực hiện quyền mua ${Number(qty).toLocaleString("en-US")} CP ${code} @ ${Number(price).toLocaleString("en-US")} đ`;
+        },
+      );
+    }
     if (desc.startsWith("BUY ")) {
       return desc.replace(
         /^BUY\s+([\d.]+)\s+([A-Z0-9]+)\s+@\s+([\d.]+)/,
